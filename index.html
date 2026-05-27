@@ -1,0 +1,2707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BhonLab Delivery Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-busy="true">
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <strong id="loadingText">Loading BhonLab...</strong>
+      <span class="status-copy">Pakihintay lang, kinukuha ang data.</span>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="auth-shell" id="authShell">
+    <section class="auth-card">
+      <div class="auth-hero">
+        <div class="auth-hero-content">
+          <div class="brand-mark">
+            <div class="brand-badge">BL</div>
+            <span>BhonLab Delivery</span>
+          </div>
+          <h1 class="auth-title">Simple delivery work for a small village team.</h1>
+          <p class="auth-copy">BhonLab helps a mother manage orders from a laptop while her son checks deliveries on the phone. Track groceries, eggs, cooking oil, fruits, and every daily need in one warm, easy dashboard.</p>
+          <div class="auth-points">
+            <div class="auth-point">
+              <div class="brand-badge">1</div>
+              <div>
+                <strong>Orders and customers</strong>
+                <span>Keep every order tied to the right household.</span>
+              </div>
+            </div>
+            <div class="auth-point">
+              <div class="brand-badge">2</div>
+              <div>
+                <strong>Map and tricky spots</strong>
+                <span>See pins, road notes, and delivery trouble areas.</span>
+              </div>
+            </div>
+            <div class="auth-point">
+              <div class="brand-badge">3</div>
+              <div>
+                <strong>Auto export cleanup</strong>
+                <span>Old orders are exported to CSV and cleared automatically.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="auth-form-panel">
+        <h2 class="auth-panel-title">Sign in</h2>
+        <p class="auth-panel-subtitle">Use your pre-created Supabase account. No registration is needed.</p>
+        <form id="loginForm" class="form-grid" novalidate>
+          <div class="form-field">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" name="email" autocomplete="email" placeholder="mother@bhonlab.com" required />
+          </div>
+          <div class="form-field">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" name="password" autocomplete="current-password" placeholder="••••••••" required />
+          </div>
+          <label class="checkbox-field">
+            <input type="checkbox" id="rememberMe" checked />
+            <span>Remember me on this device</span>
+          </label>
+          <div class="button-row">
+            <button type="submit" class="button button-primary" id="loginButton">Sign in</button>
+          </div>
+          <div class="status-banner" id="loginStatusBanner">
+            <strong>Ready to start</strong>
+            <span class="status-copy">If the internet drops, BhonLab will show a friendly message instead of breaking.</span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <div class="app-shell" id="appShell">
+    <aside class="app-sidebar">
+      <div class="sidebar-brand">
+        <h1>BhonLab</h1>
+        <p>Small village deliveries, kept simple and organized.</p>
+      </div>
+      <nav class="nav-list" id="sidebarNav">
+        <button class="nav-button is-active" data-tab="dashboard">Dashboard <span class="nav-badge" id="sidebarDashboardCount">0</span></button>
+        <button class="nav-button" data-tab="orders">Orders <span class="nav-badge" id="sidebarOrdersCount">0</span></button>
+        <button class="nav-button" data-tab="customers">Customers <span class="nav-badge" id="sidebarCustomersCount">0</span></button>
+        <button class="nav-button" data-tab="map">Map <span class="nav-badge">🗺</span></button>
+        <button class="nav-button" data-tab="tricky-spots">Tricky Spots <span class="nav-badge" id="sidebarTrickyCount">0</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <strong id="sidebarUserName">Signed in</strong>
+          <span class="status-copy" id="sidebarTeamName">Team ready</span>
+        </div>
+        <div class="status-banner" id="connectionStatusBanner">
+          <strong>Online</strong>
+          <span class="status-copy">All data syncs through Supabase.</span>
+        </div>
+        <button class="button button-ghost" id="signOutButton" type="button">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div class="header-copy">
+          <h2 id="headerTitle">Dashboard</h2>
+          <p id="headerSubtitle">Your daily order snapshot</p>
+        </div>
+        <div class="header-actions">
+          <button class="button button-secondary button-small" id="refreshButton" type="button">Refresh</button>
+          <button class="button button-primary button-small" id="quickAddOrderButton" type="button">Add Order</button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <div class="offline-banner" id="offlineBanner">
+          <strong>No internet connection.</strong>
+          <span class="status-copy">BhonLab will keep the screen usable, but database actions may wait until you are back online.</span>
+        </div>
+
+        <section class="tab-panel is-active" id="dashboardPanel" data-panel="dashboard">
+          <div class="panel-grid dashboard-grid">
+            <div class="stack-grid">
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Overview</h3>
+                    <p class="section-note">A quick view of what needs attention today.</p>
+                  </div>
+                </div>
+                <div class="stats-grid">
+                  <div class="stat-card">
+                    <span class="label">Pending orders</span>
+                    <div class="value" id="pendingOrdersValue">0</div>
+                    <div class="meta" id="pendingOrdersMeta">Ready for delivery</div>
+                  </div>
+                  <div class="stat-card">
+                    <span class="label">Customers</span>
+                    <div class="value" id="customersValue">0</div>
+                    <div class="meta">Saved households</div>
+                  </div>
+                  <div class="stat-card">
+                    <span class="label">Tricky spots</span>
+                    <div class="value" id="trickySpotsValue">0</div>
+                    <div class="meta">Road notes and warnings</div>
+                  </div>
+                </div>
+                <div class="divider"></div>
+                <div class="mini-stat-row">
+                  <div class="mini-stat">
+                    <span class="small-copy">Delivered orders</span>
+                    <strong id="deliveredOrdersValue">0</strong>
+                  </div>
+                  <div class="mini-stat">
+                    <span class="small-copy">Old orders exported</span>
+                    <strong id="expiredOrdersValue">0</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Mini map</h3>
+                    <p class="section-note">Pending orders and tricky spots around Elenita Heights, Catalunan Grande, Davao City.</p>
+                  </div>
+                  <button class="button button-secondary button-small" type="button" id="openMapButton">Open full map</button>
+                </div>
+                <div id="dashboardMiniMap" class="mini-map" aria-label="Mini map"></div>
+                <div class="map-legend">
+                  <span class="legend-item"><span class="legend-dot blue"></span> Pending order</span>
+                  <span class="legend-item"><span class="legend-dot orange"></span> Tricky spot</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="stack-grid">
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Quick actions</h3>
+                    <p class="section-note">Start a new order or jump to customer records.</p>
+                  </div>
+                </div>
+                <div class="button-row">
+                  <button class="button button-primary" id="dashboardAddOrderButton" type="button">Add Order</button>
+                  <button class="button button-secondary" id="dashboardCustomersButton" type="button">Customers</button>
+                </div>
+              </div>
+
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Pending orders</h3>
+                    <p class="section-note">The next deliveries to send out.</p>
+                  </div>
+                </div>
+                <div class="list-stack" id="dashboardPendingList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="ordersPanel" data-panel="orders">
+          <div class="panel-grid orders-grid">
+            <div class="stack-grid">
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Orders</h3>
+                    <p class="section-note">See pending and delivered orders, then create a fresh delivery.</p>
+                  </div>
+                </div>
+                <div class="tab-filter-row" id="orderFilterRow">
+                  <button class="tab-filter is-active" data-order-filter="pending" type="button">Pending</button>
+                  <button class="tab-filter" data-order-filter="delivered" type="button">Delivered</button>
+                  <button class="tab-filter" data-order-filter="all" type="button">All</button>
+                </div>
+                <div class="list-stack" id="ordersList"></div>
+              </div>
+            </div>
+
+            <div class="stack-grid">
+              <form class="card panel-card" id="orderForm" novalidate>
+                <div class="edit-mode-banner" id="orderEditBanner">Editing an existing order.</div>
+                <div class="card-title-row">
+                  <div>
+                    <h3>Add Order</h3>
+                    <p class="section-note">Select an existing customer, or create one inline.</p>
+                  </div>
+                </div>
+                <div class="form-grid compact">
+                  <div class="form-field">
+                    <label for="orderCustomerSearch">Search customer</label>
+                    <input id="orderCustomerSearch" type="search" placeholder="Type customer name or address" autocomplete="off" />
+                  </div>
+                  <div class="search-results" id="customerSearchResults"></div>
+                  <div class="selected-summary hidden" id="selectedCustomerSummary"></div>
+                  <label class="checkbox-field">
+                    <input type="checkbox" id="useNewCustomerToggle" />
+                    <span>Create a new customer for this order</span>
+                  </label>
+                  <div id="newCustomerFields" class="form-grid compact hidden">
+                    <div class="form-field">
+                      <label for="newCustomerName">Customer name</label>
+                      <input id="newCustomerName" type="text" placeholder="Juan Dela Cruz" />
+                    </div>
+                    <div class="form-field">
+                      <label for="newCustomerAddress">Address</label>
+                      <input id="newCustomerAddress" type="text" placeholder="Purok / street / sitio" />
+                    </div>
+                    <div class="small-split">
+                      <div class="form-field">
+                        <label for="newCustomerPhone">Phone</label>
+                        <input id="newCustomerPhone" type="tel" placeholder="09xx xxx xxxx" />
+                      </div>
+                      <div class="form-field">
+                        <label for="newCustomerLatitude">Latitude</label>
+                        <input id="newCustomerLatitude" type="number" step="any" placeholder="Optional" />
+                      </div>
+                    </div>
+                    <div class="form-field">
+                      <label for="newCustomerLongitude">Longitude</label>
+                      <input id="newCustomerLongitude" type="number" step="any" placeholder="Optional" />
+                    </div>
+                    <div class="button-row">
+                      <button type="button" class="button button-secondary button-small pick-map-button" id="newCustomerPickMapButton">Pick on Map</button>
+                    </div>
+                    <div class="location-preview" id="newCustomerLocationPreview">
+                      <div class="location-preview-head">
+                        <strong>Map preview</strong>
+                        <span id="newCustomerLocationPreviewText">No pin yet</span>
+                      </div>
+                      <div id="newCustomerLocationPreviewMap" class="location-preview-map"></div>
+                    </div>
+                  </div>
+                  <div class="divider"></div>
+                  <div class="form-field">
+                    <label>Items</label>
+                    <div class="items-editor" id="orderItemsEditor"></div>
+                    <div class="button-row">
+                      <button type="button" class="button button-secondary button-small" id="addItemButton">Add item</button>
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="orderNotes">Notes</label>
+                    <textarea id="orderNotes" placeholder="Special requests, exact landmark, payment notes..."></textarea>
+                  </div>
+                  <div class="button-row">
+                    <button type="submit" class="button button-primary" id="saveOrderButton">Save order</button>
+                    <button type="button" class="button button-ghost hidden" id="cancelOrderEditButton">Cancel edit</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="customersPanel" data-panel="customers">
+          <div class="panel-grid customers-grid">
+            <div class="stack-grid">
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Customers</h3>
+                    <p class="section-note">Saved households and their contact details.</p>
+                  </div>
+                </div>
+                <div class="list-stack" id="customersList"></div>
+              </div>
+            </div>
+
+            <div class="stack-grid">
+              <form class="card panel-card" id="customerForm" novalidate>
+                <div class="edit-mode-banner" id="customerEditBanner">Editing a customer.</div>
+                <div class="card-title-row">
+                  <div>
+                    <h3>Add Customer</h3>
+                    <p class="section-note">Keep the address and map pin ready for fast deliveries.</p>
+                  </div>
+                </div>
+                <div class="form-grid compact">
+                  <div class="form-field">
+                    <label for="customerName">Name</label>
+                    <input id="customerName" type="text" placeholder="Maria Santos" required />
+                  </div>
+                  <div class="form-field">
+                    <label for="customerAddress">Address</label>
+                    <input id="customerAddress" type="text" placeholder="Street, purok, sitio" required />
+                  </div>
+                  <div class="small-split">
+                    <div class="form-field">
+                      <label for="customerPhone">Phone</label>
+                      <input id="customerPhone" type="tel" placeholder="09xx xxx xxxx" />
+                    </div>
+                    <div class="form-field">
+                      <label for="customerLatitude">Latitude</label>
+                      <input id="customerLatitude" type="number" step="any" placeholder="Optional" />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <label for="customerLongitude">Longitude</label>
+                    <input id="customerLongitude" type="number" step="any" placeholder="Optional" />
+                  </div>
+                  <div class="button-row">
+                    <button type="button" class="button button-secondary button-small pick-map-button" id="customerPickMapButton">Pick on Map</button>
+                  </div>
+                  <div class="location-preview" id="customerLocationPreview">
+                    <div class="location-preview-head">
+                      <strong>Map preview</strong>
+                      <span id="customerLocationPreviewText">No pin yet</span>
+                    </div>
+                    <div id="customerLocationPreviewMap" class="location-preview-map"></div>
+                  </div>
+                  <div class="button-row">
+                    <button type="submit" class="button button-primary" id="saveCustomerButton">Save customer</button>
+                    <button type="button" class="button button-ghost hidden" id="cancelCustomerEditButton">Cancel edit</button>
+                  </div>
+                </div>
+              </form>
+
+              <div class="card panel-card customer-history">
+                <div class="customer-history-head">
+                  <div>
+                    <h3>Order history</h3>
+                    <p class="section-note" id="customerHistorySubtitle">Click a customer to view their orders.</p>
+                  </div>
+                  <button type="button" class="button button-secondary button-small" id="clearCustomerSelectionButton">Clear</button>
+                </div>
+                <div class="customer-history-items" id="customerHistoryList"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="mapPanel" data-panel="map">
+          <div class="card panel-card">
+            <div class="card-title-row">
+              <div>
+                <h3>Map</h3>
+                <p class="section-note">Full map centered on Elenita Heights, Catalunan Grande, Davao City.</p>
+              </div>
+              <div class="badge-row">
+                <span class="badge pending">Blue pending</span>
+                <span class="badge delivered">Green delivered</span>
+                <span class="badge warning">Orange tricky spots</span>
+              </div>
+            </div>
+            <div id="fullMap" class="full-map" aria-label="Full map"></div>
+            <div class="map-legend">
+              <span class="legend-item"><span class="legend-dot blue"></span> Pending order</span>
+              <span class="legend-item"><span class="legend-dot green"></span> Delivered order</span>
+              <span class="legend-item"><span class="legend-dot orange"></span> Tricky spot</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="trickySpotsPanel" data-panel="tricky-spots">
+          <div class="panel-grid tricky-grid">
+            <div class="stack-grid">
+              <div class="card panel-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Tricky spots</h3>
+                    <p class="section-note">Roads, turns, or areas that need special care during delivery.</p>
+                  </div>
+                </div>
+                <div class="list-stack" id="trickySpotsList"></div>
+              </div>
+            </div>
+
+            <div class="stack-grid">
+              <form class="card panel-card" id="trickySpotForm" novalidate>
+                <div class="edit-mode-banner" id="trickySpotEditBanner">Editing a tricky spot.</div>
+                <div class="card-title-row">
+                  <div>
+                    <h3>Add Tricky Spot</h3>
+                    <p class="section-note">Label the area and pin it on the map for easier delivery runs.</p>
+                  </div>
+                </div>
+                <div class="form-grid compact">
+                  <div class="form-field">
+                    <label for="trickySpotLabel">Label</label>
+                    <input id="trickySpotLabel" type="text" placeholder="Narrow bridge near sitio" required />
+                  </div>
+                  <div class="form-field">
+                    <label for="trickySpotNotes">Notes</label>
+                    <textarea id="trickySpotNotes" placeholder="Best route, hazards, gate notes..."></textarea>
+                  </div>
+                  <div class="small-split">
+                    <div class="form-field">
+                      <label for="trickySpotLatitude">Latitude</label>
+                      <input id="trickySpotLatitude" type="number" step="any" placeholder="Required" required />
+                    </div>
+                    <div class="form-field">
+                      <label for="trickySpotLongitude">Longitude</label>
+                      <input id="trickySpotLongitude" type="number" step="any" placeholder="Required" required />
+                    </div>
+                  </div>
+                  <div class="button-row">
+                    <button type="button" class="button button-secondary button-small pick-map-button" id="trickySpotPickMapButton">Pick on Map</button>
+                  </div>
+                  <div class="location-preview" id="trickySpotLocationPreview">
+                    <div class="location-preview-head">
+                      <strong>Map preview</strong>
+                      <span id="trickySpotLocationPreviewText">No pin yet</span>
+                    </div>
+                    <div id="trickySpotLocationPreviewMap" class="location-preview-map"></div>
+                  </div>
+                  <div class="button-row">
+                    <button type="submit" class="button button-primary" id="saveTrickySpotButton">Save spot</button>
+                    <button type="button" class="button button-ghost hidden" id="cancelTrickySpotEditButton">Cancel edit</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <nav class="mobile-tabbar" id="mobileTabbar" aria-label="Primary navigation">
+      <button class="mobile-tab-button is-active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="mobile-tab-button" data-tab="orders" type="button">Orders</button>
+      <button class="mobile-tab-button" data-tab="customers" type="button">Customers</button>
+      <button class="mobile-tab-button" data-tab="map" type="button">Map</button>
+      <button class="mobile-tab-button" data-tab="tricky-spots" type="button">Spots</button>
+    </nav>
+  </div>
+
+  <div class="map-picker-overlay" id="mapPickerOverlay" aria-hidden="true">
+    <div class="map-picker-shell" role="dialog" aria-modal="true" aria-labelledby="mapPickerTitle">
+      <div class="map-picker-header">
+        <div>
+          <h3 id="mapPickerTitle">Pick on Map</h3>
+          <p id="mapPickerSubtitle">Tap anywhere on the map to set the location.</p>
+        </div>
+        <div class="button-row">
+          <button type="button" class="button button-ghost button-small" id="mapPickerCancelButton">Cancel</button>
+          <button type="button" class="button button-primary button-small" id="mapPickerConfirmButton">Confirm Location</button>
+        </div>
+      </div>
+      <div class="map-picker-banner">Tap anywhere on the map to set the location</div>
+      <div id="pinPickerMap" class="map-picker-map"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+
+    // Supabase connection and credentials moved to js/supabase.js
+    const MAP_DEFAULT_CENTER = [7.0418, 125.5603];
+    const MAP_DEFAULT_ZOOM = 16;
+    const MAP_PREVIEW_ZOOM = 17;
+    const MAP_PICKER_ZOOM = 18;
+
+    const ORDER_EXPIRY_DAYS = 30;
+    const MAX_TOASTS = 4;
+    const TOAST_DURATION_MS = 3600;
+    const LOADING_TEXT = 'Loading BhonLab...';
+    const NO_INTERNET_MESSAGE = 'No internet connection. Please reconnect and try again.';
+    const SAVE_ERROR_MESSAGE = 'We could not save your changes. Please try again.';
+    const LOAD_ERROR_MESSAGE = 'We could not load data right now. Please try again.';
+    const LOGIN_ERROR_MESSAGE = 'Unable to sign in. Please check your email and password.';
+    const NO_TEAM_MESSAGE = 'Your account is not linked to a team yet. Ask the owner to add you to team_members.';
+    const AUTO_EXPORT_MESSAGE = 'Auto-export finished for old orders.';
+    const EXPORT_FILENAME_PREFIX = 'bhonlab-expired-orders';
+    const STORAGE_KEYS = {
+      AUTH_MODE: 'bhonlab-auth-mode'
+    };
+
+    const STATUS = {
+      PENDING: 'pending',
+      DELIVERED: 'delivered'
+    };
+
+    const TABS = {
+      DASHBOARD: 'dashboard',
+      ORDERS: 'orders',
+      CUSTOMERS: 'customers',
+      MAP: 'map',
+      TRICKY_SPOTS: 'tricky-spots'
+    };
+
+    const LOCATION_TARGETS = {
+      NEW_CUSTOMER: 'new-customer',
+      CUSTOMER: 'customer',
+      TRICKY_SPOT: 'tricky-spot'
+    };
+
+    const ORDER_FILTERS = {
+      PENDING: 'pending',
+      DELIVERED: 'delivered',
+      ALL: 'all'
+    };
+
+    const MAP_TILES = {
+      URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      ATTRIBUTION: '&copy; OpenStreetMap contributors'
+    };
+
+    const MESSAGE_TYPES = {
+      SUCCESS: 'success',
+      ERROR: 'error',
+      INFO: 'info',
+      WARNING: 'warning'
+    };
+
+    const DEFAULT_ORDER_ITEM = 'Item';
+    const NEW_ORDER_ITEM_PLACEHOLDER = 'Eggs, rice, cooking oil...';
+    const EMPTY_LAT_LNG = '';
+    const APP_TITLE_BY_TAB = {
+      [TABS.DASHBOARD]: 'Dashboard',
+      [TABS.ORDERS]: 'Orders',
+      [TABS.CUSTOMERS]: 'Customers',
+      [TABS.MAP]: 'Map',
+      [TABS.TRICKY_SPOTS]: 'Tricky Spots'
+    };
+
+    // Supabase client available via getSupabaseClient() from js/supabase.js
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    const state = {
+      user: null,
+      teamId: null,
+      currentTab: TABS.DASHBOARD,
+      authStorageMode: window.localStorage.getItem(STORAGE_KEYS.AUTH_MODE) || 'local',
+      ui: {
+        rememberMe: true,
+        orderFilter: ORDER_FILTERS.PENDING,
+        selectedCustomerId: null,
+        selectedCustomerHistoryId: null,
+        editingCustomerId: null,
+        editingTrickySpotId: null,
+        editingOrderId: null,
+        selectedOrderCustomerId: null,
+        lastExpiredExportCount: 0,
+        mapPicker: {
+          active: false,
+          target: null,
+          coordinates: null
+        }
+      },
+      map: {
+        instance: null,
+        miniInstance: null,
+        previewMaps: {
+          newCustomer: null,
+          customer: null,
+          trickySpot: null
+        },
+        previewMarkers: {
+          newCustomer: null,
+          customer: null,
+          trickySpot: null
+        },
+        pinPickerMap: null,
+        pinPickerMarker: null,
+        layers: {
+          dashboard: {
+            orders: null,
+            trickySpots: null
+          },
+          full: {
+            orders: null,
+            trickySpots: null
+          }
+        },
+        markers: {
+          orders: [],
+          trickySpots: []
+        }
+      },
+      data: {
+        orders: [],
+        customers: [],
+        trickySpots: []
+      }
+    };
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+
+    const elements = {};
+
+    function cacheElements() {
+      const elementIds = [
+        'authShell', 'appShell', 'loadingOverlay', 'loadingText', 'toastContainer', 'loginForm', 'loginEmail',
+        'loginPassword', 'rememberMe', 'loginButton', 'loginStatusBanner', 'sidebarUserName', 'sidebarTeamName',
+        'connectionStatusBanner', 'sidebarDashboardCount', 'sidebarOrdersCount', 'sidebarCustomersCount',
+        'sidebarTrickyCount', 'signOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
+        'quickAddOrderButton', 'openMapButton', 'dashboardAddOrderButton', 'dashboardCustomersButton',
+        'offlineBanner', 'pendingOrdersValue', 'pendingOrdersMeta', 'customersValue', 'trickySpotsValue',
+        'deliveredOrdersValue', 'expiredOrdersValue', 'dashboardPendingList', 'dashboardMiniMap', 'ordersList',
+        'orderFilterRow', 'orderForm', 'orderEditBanner', 'orderCustomerSearch', 'customerSearchResults',
+        'selectedCustomerSummary', 'useNewCustomerToggle', 'newCustomerFields', 'newCustomerName', 'newCustomerAddress',
+        'newCustomerPhone', 'newCustomerLatitude', 'newCustomerLongitude', 'newCustomerPickMapButton',
+        'newCustomerLocationPreview', 'newCustomerLocationPreviewText', 'newCustomerLocationPreviewMap', 'orderItemsEditor',
+        'addItemButton', 'orderNotes', 'saveOrderButton', 'cancelOrderEditButton', 'customersList', 'customerForm',
+        'customerEditBanner', 'customerName', 'customerAddress', 'customerPhone', 'customerLatitude', 'customerLongitude',
+        'customerPickMapButton', 'customerLocationPreview', 'customerLocationPreviewText', 'customerLocationPreviewMap',
+        'saveCustomerButton', 'cancelCustomerEditButton', 'customerHistorySubtitle', 'customerHistoryList',
+        'clearCustomerSelectionButton', 'fullMap', 'trickySpotsList', 'trickySpotForm', 'trickySpotEditBanner',
+        'trickySpotLabel', 'trickySpotNotes', 'trickySpotLatitude', 'trickySpotLongitude', 'trickySpotPickMapButton',
+        'trickySpotLocationPreview', 'trickySpotLocationPreviewText', 'trickySpotLocationPreviewMap', 'saveTrickySpotButton',
+        'cancelTrickySpotEditButton', 'mobileTabbar', 'mapPickerOverlay', 'mapPickerTitle', 'mapPickerSubtitle',
+        'mapPickerCancelButton', 'mapPickerConfirmButton', 'pinPickerMap'
+      ];
+
+      for (const id of elementIds) {
+        elements[id] = document.getElementById(id);
+      }
+    }
+
+    function getAuthStorage() {
+      return state.authStorageMode === 'session' ? window.sessionStorage : window.localStorage;
+    }
+
+    function setAuthStorageMode(mode) {
+      state.authStorageMode = mode;
+      window.localStorage.setItem(STORAGE_KEYS.AUTH_MODE, mode);
+    }
+
+    function isOnline() {
+      return navigator.onLine;
+    }
+
+    function formatDate(value) {
+      if (!value) return 'No date';
+      const date = new Date(value);
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }).format(date);
+    }
+
+    function formatDateOnly(value) {
+      if (!value) return 'No date';
+      const date = new Date(value);
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(date);
+    }
+
+    function formatCompactDate(value) {
+      if (!value) return 'No date';
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric'
+      }).format(new Date(value));
+    }
+
+    function formatItems(items) {
+      if (!Array.isArray(items) || items.length === 0) return 'No items';
+      return items.join(', ');
+    }
+
+    function normalizeItems(rawItems) {
+      return rawItems
+        .map((input) => input.trim())
+        .filter(Boolean);
+    }
+
+    function parseNumber(value) {
+      if (value === '' || value === null || value === undefined) return null;
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+
+    function getCustomerFullText(customer) {
+      return [customer.name, customer.address, customer.phone].filter(Boolean).join(' ');
+    }
+
+    function getOrderCustomer(order) {
+      return state.data.customers.find((customer) => customer.id === order.customer_id) || null;
+    }
+
+    function getStatusLabel(status) {
+      if (status === STATUS.DELIVERED) return 'Delivered';
+      return 'Pending';
+    }
+
+    function getOrderItemCount(order) {
+      return Array.isArray(order.items) ? order.items.length : 0;
+    }
+
+    function getCustomerLocation(customer) {
+      if (!customer) return null;
+      const latitude = parseNumber(customer.latitude);
+      const longitude = parseNumber(customer.longitude);
+      if (latitude === null || longitude === null) return null;
+      return [latitude, longitude];
+    }
+
+    function getTrickySpotLocation(spot) {
+      const latitude = parseNumber(spot.latitude);
+      const longitude = parseNumber(spot.longitude);
+      if (latitude === null || longitude === null) return null;
+      return [latitude, longitude];
+    }
+
+    function setLoading(isLoading, label = LOADING_TEXT) {
+      elements.loadingText.textContent = label;
+      elements.loadingOverlay.classList.toggle('is-visible', isLoading);
+      document.body.style.overflow = isLoading ? 'hidden' : '';
+    }
+
+    function showToast(message, type = MESSAGE_TYPES.INFO, title = '') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        ${title ? `<strong>${escapeHtml(title)}</strong>` : ''}
+        <span>${escapeHtml(message)}</span>
+      `;
+
+      elements.toastContainer.prepend(toast);
+      while (elements.toastContainer.children.length > MAX_TOASTS) {
+        elements.toastContainer.removeChild(elements.toastContainer.lastElementChild);
+      }
+
+      window.setTimeout(() => {
+        toast.remove();
+      }, TOAST_DURATION_MS);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function getFriendlyErrorMessage(error, fallbackMessage = LOAD_ERROR_MESSAGE) {
+      const message = error?.message || '';
+      if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('fetch')) {
+        return NO_INTERNET_MESSAGE;
+      }
+      if (message.includes('Invalid login credentials')) {
+        return LOGIN_ERROR_MESSAGE;
+      }
+      if (message.includes('team')) {
+        return NO_TEAM_MESSAGE;
+      }
+      return fallbackMessage;
+    }
+
+    function showGlobalError(error, fallbackMessage = LOAD_ERROR_MESSAGE, title = 'Something went wrong') {
+      const friendlyMessage = getFriendlyErrorMessage(error, fallbackMessage);
+      console.error(error);
+      showToast(friendlyMessage, MESSAGE_TYPES.ERROR, title);
+      return friendlyMessage;
+    }
+
+    function resetFormBanner(bannerElement, shouldShow) {
+      bannerElement.classList.toggle('is-visible', shouldShow);
+    }
+
+    function cloneData(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function groupOrdersByStatus(orderList) {
+      return {
+        pending: orderList.filter((order) => order.status === STATUS.PENDING),
+        delivered: orderList.filter((order) => order.status === STATUS.DELIVERED)
+      };
+    }
+
+    function getSelectedOrderFilter() {
+      return state.ui.orderFilter;
+    }
+
+    function getOrderFilterLabel(filter) {
+      if (filter === ORDER_FILTERS.DELIVERED) return 'Delivered';
+      if (filter === ORDER_FILTERS.ALL) return 'All';
+      return 'Pending';
+    }
+
+    function createCsvContent(rows) {
+      return rows.map((row) => row.map((value) => escapeCsvValue(value)).join(',')).join('\n');
+    }
+
+    function escapeCsvValue(value) {
+      const output = value === null || value === undefined ? '' : String(value);
+      if (/[",\n]/.test(output)) {
+        return `"${output.replaceAll('"', '""')}"`;
+      }
+      return output;
+    }
+
+    function getCustomerDisplayName(customer) {
+      return customer?.name || 'Unknown customer';
+    }
+
+    function normalizeCustomerName(name) {
+      return (name || '').trim().toLowerCase();
+    }
+
+    function customerNameExists(name, ignoreCustomerId = null) {
+      const normalizedName = normalizeCustomerName(name);
+      if (!normalizedName) return false;
+      return state.data.customers.some((customer) => {
+        if (ignoreCustomerId && customer.id === ignoreCustomerId) return false;
+        return normalizeCustomerName(customer.name) === normalizedName;
+      });
+    }
+
+    function getOrderPopupHtml(order) {
+      const customer = getOrderCustomer(order);
+      const customerName = escapeHtml(customer?.name || 'Unknown customer');
+      const items = escapeHtml(formatItems(order.items));
+      const notes = escapeHtml(order.notes || 'No notes');
+      const status = escapeHtml(getStatusLabel(order.status));
+      return `
+        <div class="map-popup">
+          <strong>${customerName}</strong><br />
+          <span>Status: ${status}</span><br />
+          <span>Items: ${items}</span><br />
+          <span>Notes: ${notes}</span>
+        </div>
+      `;
+    }
+
+    function getTrickySpotPopupHtml(spot) {
+      return `
+        <div class="map-popup">
+          <strong>${escapeHtml(spot.label)}</strong><br />
+          <span>${escapeHtml(spot.notes || 'No notes')}</span>
+        </div>
+      `;
+    }
+
+    function getLocationTargetConfig(target) {
+      if (target === LOCATION_TARGETS.NEW_CUSTOMER) {
+        return {
+          title: 'Pick New Customer Location',
+          subtitle: 'Tap anywhere on the map to set the customer location.',
+          latInputId: 'newCustomerLatitude',
+          lngInputId: 'newCustomerLongitude',
+          previewTextId: 'newCustomerLocationPreviewText',
+          previewMapId: 'newCustomerLocationPreviewMap',
+          previewKey: 'newCustomer'
+        };
+      }
+
+      if (target === LOCATION_TARGETS.CUSTOMER) {
+        return {
+          title: 'Pick Customer Location',
+          subtitle: 'Tap anywhere on the map to set the customer location.',
+          latInputId: 'customerLatitude',
+          lngInputId: 'customerLongitude',
+          previewTextId: 'customerLocationPreviewText',
+          previewMapId: 'customerLocationPreviewMap',
+          previewKey: 'customer'
+        };
+      }
+
+      return {
+        title: 'Pick Tricky Spot Location',
+        subtitle: 'Tap anywhere on the map to set the tricky spot location.',
+        latInputId: 'trickySpotLatitude',
+        lngInputId: 'trickySpotLongitude',
+        previewTextId: 'trickySpotLocationPreviewText',
+        previewMapId: 'trickySpotLocationPreviewMap',
+        previewKey: 'trickySpot'
+      };
+    }
+
+    function getLocationCoordinatesFromInputs(target) {
+      const config = getLocationTargetConfig(target);
+      const latitude = parseNumber(elements[config.latInputId].value);
+      const longitude = parseNumber(elements[config.lngInputId].value);
+      if (latitude === null || longitude === null) return null;
+      return [latitude, longitude];
+    }
+
+    function setLocationCoordinatesOnInputs(target, coordinates) {
+      const config = getLocationTargetConfig(target);
+      elements[config.latInputId].value = coordinates ? coordinates[0] : '';
+      elements[config.lngInputId].value = coordinates ? coordinates[1] : '';
+    }
+
+    function createStandaloneLeafletMap(elementId, options = {}) {
+      const map = window.L.map(elementId, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        tap: true,
+        touchZoom: true,
+        ...options
+      }).setView(options.center || MAP_DEFAULT_CENTER, options.zoom || MAP_DEFAULT_ZOOM);
+
+      window.L.tileLayer(MAP_TILES.URL, { attribution: MAP_TILES.ATTRIBUTION }).addTo(map);
+      return map;
+    }
+
+    function getOrCreatePreviewMap(target) {
+      const config = getLocationTargetConfig(target);
+      if (state.map.previewMaps[config.previewKey]) return state.map.previewMaps[config.previewKey];
+
+      const map = createStandaloneLeafletMap(config.previewMapId, {
+        zoom: MAP_PREVIEW_ZOOM,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        tap: false,
+        touchZoom: false
+      });
+      state.map.previewMaps[config.previewKey] = map;
+      return map;
+    }
+
+    function renderLocationPreview(target) {
+      const config = getLocationTargetConfig(target);
+      const coordinates = getLocationCoordinatesFromInputs(target);
+      const map = getOrCreatePreviewMap(target);
+      const markerKey = config.previewKey;
+      const existingMarker = state.map.previewMarkers[markerKey];
+
+      if (existingMarker) {
+        map.removeLayer(existingMarker);
+        state.map.previewMarkers[markerKey] = null;
+      }
+
+      map.setView(coordinates || MAP_DEFAULT_CENTER, coordinates ? MAP_PREVIEW_ZOOM : MAP_DEFAULT_ZOOM);
+
+      if (coordinates) {
+        const marker = window.L.marker(coordinates, { draggable: false });
+        marker.addTo(map);
+        state.map.previewMarkers[markerKey] = marker;
+        elements[config.previewTextId].textContent = `${coordinates[0].toFixed(5)}, ${coordinates[1].toFixed(5)}`;
+      } else {
+        elements[config.previewTextId].textContent = 'No pin yet';
+      }
+
+      window.setTimeout(() => map.invalidateSize(), 60);
+    }
+
+    function getPinPickerMap() {
+      if (state.map.pinPickerMap) return state.map.pinPickerMap;
+      state.map.pinPickerMap = createStandaloneLeafletMap('pinPickerMap', {
+        zoom: MAP_PICKER_ZOOM
+      });
+      return state.map.pinPickerMap;
+    }
+
+    function setPinPickerCoordinates(coordinates) {
+      state.ui.mapPicker.coordinates = coordinates;
+      const map = getPinPickerMap();
+
+      if (state.map.pinPickerMarker) {
+        state.map.pinPickerMarker.setLatLng(coordinates);
+      } else {
+        const marker = window.L.marker(coordinates, { draggable: true });
+        marker.on('dragend', (event) => {
+          const position = event.target.getLatLng();
+          state.ui.mapPicker.coordinates = [position.lat, position.lng];
+        });
+        marker.addTo(map);
+        state.map.pinPickerMarker = marker;
+      }
+
+      map.setView(coordinates, MAP_PICKER_ZOOM);
+      window.setTimeout(() => map.invalidateSize(), 60);
+    }
+
+    function renderPinPickerMap() {
+      const target = state.ui.mapPicker.target;
+      if (!target) return;
+
+      const map = getPinPickerMap();
+      const initialCoordinates = state.ui.mapPicker.coordinates || getLocationCoordinatesFromInputs(target) || MAP_DEFAULT_CENTER;
+
+      if (state.map.pinPickerMarker) {
+        map.removeLayer(state.map.pinPickerMarker);
+        state.map.pinPickerMarker = null;
+      }
+
+      map.off('click');
+      map.on('click', (event) => {
+        const coordinates = [event.latlng.lat, event.latlng.lng];
+        setPinPickerCoordinates(coordinates);
+      });
+
+      const marker = window.L.marker(initialCoordinates, { draggable: true });
+      marker.on('dragend', (event) => {
+        const position = event.target.getLatLng();
+        state.ui.mapPicker.coordinates = [position.lat, position.lng];
+      });
+      marker.addTo(map);
+      state.map.pinPickerMarker = marker;
+      state.ui.mapPicker.coordinates = initialCoordinates;
+      map.setView(initialCoordinates, MAP_PICKER_ZOOM);
+      window.setTimeout(() => map.invalidateSize(), 60);
+    }
+
+    function setPinPickerActive(isActive) {
+      state.ui.mapPicker.active = isActive;
+      elements.mapPickerOverlay.classList.toggle('is-visible', isActive);
+      elements.mapPickerOverlay.setAttribute('aria-hidden', String(!isActive));
+      elements.appShell.classList.toggle('is-pin-picking', isActive);
+      document.body.classList.toggle('is-pin-picking', isActive);
+
+      if ('inert' in elements.appShell) {
+        elements.appShell.inert = isActive;
+      }
+
+      if (isActive) {
+        elements.mapPickerOverlay.focus?.();
+      }
+    }
+
+    function openPinPicker(target) {
+      const config = getLocationTargetConfig(target);
+      state.ui.mapPicker.target = target;
+      state.ui.mapPicker.coordinates = getLocationCoordinatesFromInputs(target) || MAP_DEFAULT_CENTER;
+      elements.mapPickerTitle.textContent = config.title;
+      elements.mapPickerSubtitle.textContent = config.subtitle;
+      setPinPickerActive(true);
+      window.requestAnimationFrame(() => {
+        renderPinPickerMap();
+      });
+    }
+
+    function closePinPicker() {
+      setPinPickerActive(false);
+      state.ui.mapPicker.target = null;
+      state.ui.mapPicker.coordinates = null;
+      if (state.map.pinPickerMarker && state.map.pinPickerMap) {
+        state.map.pinPickerMap.removeLayer(state.map.pinPickerMarker);
+      }
+      state.map.pinPickerMarker = null;
+    }
+
+    function confirmPinPicker() {
+      const target = state.ui.mapPicker.target;
+      const coordinates = state.ui.mapPicker.coordinates;
+      if (!target || !coordinates) return;
+
+      setLocationCoordinatesOnInputs(target, coordinates);
+      renderLocationPreview(target);
+      closePinPicker();
+    }
+
+    // ============================================================
+    // AUTH
+    // ============================================================
+
+    async function signIn(email, password) {
+      setAuthStorageMode(state.ui.rememberMe ? 'local' : 'session');
+      const { data, error } = await getSupabaseClient().auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      const user = data?.user || null;
+      if (!user) {
+        throw new Error('Login completed without a user session.');
+      }
+      const teamId = await getTeamId(user.id);
+      state.user = user;
+      state.teamId = teamId;
+      return { user, teamId };
+    }
+
+    async function signOut() {
+      const { error } = await getSupabaseClient().auth.signOut();
+      if (error) throw error;
+      state.user = null;
+      state.teamId = null;
+      state.data.orders = [];
+      state.data.customers = [];
+      state.data.trickySpots = [];
+      state.ui.selectedCustomerId = null;
+      state.ui.selectedCustomerHistoryId = null;
+      state.ui.editingCustomerId = null;
+      state.ui.editingTrickySpotId = null;
+      state.ui.editingOrderId = null;
+      state.ui.selectedOrderCustomerId = null;
+      renderLoginState();
+    }
+
+    async function getSession() {
+      const { data, error } = await getSupabaseClient().auth.getSession();
+      if (error) throw error;
+      return data?.session || null;
+    }
+
+    async function getTeamId(userId) {
+      ensureTeamContextCandidate();
+      const { data, error } = await getSupabaseClient()
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data?.team_id) throw new Error(NO_TEAM_MESSAGE);
+      return data.team_id;
+    }
+
+    function ensureTeamContext() {
+      if (!state.teamId) {
+        throw new Error(NO_TEAM_MESSAGE);
+      }
+    }
+
+    function ensureTeamContextCandidate() {
+      if (!SUPABASE_URL || SUPABASE_URL.includes('YOUR_SUPABASE_URL')) {
+        throw new Error('Please configure your Supabase URL and anonymous key first.');
+      }
+    }
+
+    // ============================================================
+    // DATABASE
+    // ============================================================
+
+    async function fetchCustomers() {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { data, error } = await getSupabaseClient()
+        .from('customers')
+        .select('*')
+        .eq('team_id', state.teamId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function insertCustomer(data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      if (!state.user?.id) {
+        throw new Error('Sign in again before adding customers.');
+      }
+      const payload = {
+        user_id: state.user.id,
+        team_id: state.teamId,
+        name: data.name,
+        address: data.address,
+        phone: data.phone || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null
+      };
+      const { data: inserted, error } = await getSupabaseClient()
+        .from('customers')
+        .insert(payload)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return inserted;
+    }
+
+    async function updateCustomer(id, data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const payload = {
+        name: data.name,
+        address: data.address,
+        phone: data.phone || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null
+      };
+      const { data: updated, error } = await getSupabaseClient()
+        .from('customers')
+        .update(payload)
+        .eq('team_id', state.teamId)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return updated;
+    }
+
+    async function deleteCustomer(id) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { error } = await getSupabaseClient()
+        .from('customers')
+        .delete()
+        .eq('team_id', state.teamId)
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    }
+
+    async function fetchOrders() {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { data, error } = await getSupabaseClient()
+        .from('orders')
+        .select('*')
+        .eq('team_id', state.teamId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function insertOrder(data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const payload = {
+        team_id: state.teamId,
+        customer_id: data.customer_id,
+        items: data.items || [],
+        status: data.status || STATUS.PENDING,
+        notes: data.notes || null,
+        delivered_at: data.delivered_at || null
+      };
+      const { data: inserted, error } = await getSupabaseClient()
+        .from('orders')
+        .insert(payload)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return inserted;
+    }
+
+    async function updateOrder(id, data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const payload = {
+        customer_id: data.customer_id,
+        items: data.items || [],
+        status: data.status || STATUS.PENDING,
+        notes: data.notes || null,
+        delivered_at: data.delivered_at || null
+      };
+      const { data: updated, error } = await getSupabaseClient()
+        .from('orders')
+        .update(payload)
+        .eq('team_id', state.teamId)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return updated;
+    }
+
+    async function markOrderDelivered(id) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const deliveredAt = new Date().toISOString();
+      const { data: updated, error } = await getSupabaseClient()
+        .from('orders')
+        .update({ status: STATUS.DELIVERED, delivered_at: deliveredAt })
+        .eq('team_id', state.teamId)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return updated;
+    }
+
+    async function deleteOrders(ids) {
+      if (!ids || ids.length === 0) return true;
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { error } = await getSupabaseClient()
+        .from('orders')
+        .delete()
+        .eq('team_id', state.teamId)
+        .in('id', ids);
+
+      if (error) throw error;
+      return true;
+    }
+
+    async function fetchExpiredOrders() {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - ORDER_EXPIRY_DAYS);
+      const cutoffIso = cutoffDate.toISOString();
+
+      const { data, error } = await getSupabaseClient()
+        .from('orders')
+        .select('*, customers(name, address)')
+        .eq('team_id', state.teamId)
+        .lt('created_at', cutoffIso)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function fetchTrickySpots() {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { data, error } = await getSupabaseClient()
+        .from('tricky_spots')
+        .select('*')
+        .eq('team_id', state.teamId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function insertTrickySpot(data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const payload = {
+        team_id: state.teamId,
+        label: data.label,
+        notes: data.notes || null,
+        latitude: data.latitude,
+        longitude: data.longitude
+      };
+      const { data: inserted, error } = await getSupabaseClient()
+        .from('tricky_spots')
+        .insert(payload)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return inserted;
+    }
+
+    async function updateTrickySpot(id, data) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const payload = {
+        label: data.label,
+        notes: data.notes || null,
+        latitude: data.latitude,
+        longitude: data.longitude
+      };
+      const { data: updated, error } = await getSupabaseClient()
+        .from('tricky_spots')
+        .update(payload)
+        .eq('team_id', state.teamId)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return updated;
+    }
+
+    async function deleteTrickySpot(id) {
+      ensureOnlineForDatabase();
+      ensureTeamContext();
+      const { error } = await getSupabaseClient()
+        .from('tricky_spots')
+        .delete()
+        .eq('team_id', state.teamId)
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
+    }
+
+    function ensureOnlineForDatabase() {
+      if (!isOnline()) {
+        throw new Error(NO_INTERNET_MESSAGE);
+      }
+    }
+
+    // ============================================================
+    // MAP
+    // ============================================================
+
+    function createLeafletMap(elementId, instanceKey) {
+      const map = window.L.map(elementId).setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM);
+      window.L.tileLayer(MAP_TILES.URL, { attribution: MAP_TILES.ATTRIBUTION }).addTo(map);
+      state.map[instanceKey] = map;
+      return map;
+    }
+
+    function getOrCreateMap(instanceKey, elementId) {
+      if (state.map[instanceKey]) return state.map[instanceKey];
+      return createLeafletMap(elementId, instanceKey);
+    }
+
+    function clearMapLayer(mapKey, layerKey) {
+      const currentLayer = state.map.layers[mapKey][layerKey];
+      const mapInstance = mapKey === 'dashboard' ? state.map.miniInstance : state.map.instance;
+      if (currentLayer && mapInstance) {
+        mapInstance.removeLayer(currentLayer);
+      }
+      state.map.layers[mapKey][layerKey] = null;
+    }
+
+    function addMarkersToMap(mapKey, layerKey, mapInstance, items, buildMarker) {
+      clearMapLayer(mapKey, layerKey);
+      const layerGroup = window.L.layerGroup();
+      items.forEach((item) => {
+        const marker = buildMarker(item);
+        if (marker) {
+          layerGroup.addLayer(marker);
+        }
+      });
+      layerGroup.addTo(mapInstance);
+      state.map.layers[mapKey][layerKey] = layerGroup;
+    }
+
+    function buildOrderMarker(order, customer, color) {
+      const location = getCustomerLocation(customer);
+      if (!location) return null;
+      const marker = window.L.circleMarker(location, {
+        radius: 9,
+        color,
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.9
+      });
+      marker.bindPopup(getOrderPopupHtml(order));
+      return marker;
+    }
+
+    function buildTrickySpotMarker(spot) {
+      const location = getTrickySpotLocation(spot);
+      if (!location) return null;
+      const marker = window.L.circleMarker(location, {
+        radius: 9,
+        color: '#c97a1a',
+        weight: 2,
+        fillColor: '#c97a1a',
+        fillOpacity: 0.92
+      });
+      marker.bindPopup(getTrickySpotPopupHtml(spot));
+      return marker;
+    }
+
+    function renderDashboardMap() {
+      const map = getOrCreateMap('miniInstance', 'dashboardMiniMap');
+      window.setTimeout(() => map.invalidateSize(), 100);
+      const pendingOrders = state.data.orders.filter((order) => order.status === STATUS.PENDING);
+      addMarkersToMap('dashboard', 'orders', map, pendingOrders, (order) => {
+        const customer = getOrderCustomer(order);
+        return buildOrderMarker(order, customer, '#2d6cdf');
+      });
+      addMarkersToMap('dashboard', 'trickySpots', map, state.data.trickySpots, (spot) => buildTrickySpotMarker(spot));
+    }
+
+    function renderFullMap() {
+      const map = getOrCreateMap('instance', 'fullMap');
+      window.setTimeout(() => map.invalidateSize(), 100);
+      addMarkersToMap('full', 'orders', map, state.data.orders, (order) => {
+        const customer = getOrderCustomer(order);
+        const color = order.status === STATUS.DELIVERED ? '#2f8f57' : '#2d6cdf';
+        return buildOrderMarker(order, customer, color);
+      });
+      addMarkersToMap('full', 'trickySpots', map, state.data.trickySpots, (spot) => buildTrickySpotMarker(spot));
+    }
+
+    function refreshMaps() {
+      if (elements.dashboardMiniMap && document.body.contains(elements.dashboardMiniMap)) {
+        renderDashboardMap();
+      }
+      if (elements.fullMap && document.body.contains(elements.fullMap)) {
+        renderFullMap();
+      }
+    }
+
+    function fitMapToData() {
+      const locations = [];
+      state.data.customers.forEach((customer) => {
+        const location = getCustomerLocation(customer);
+        if (location) locations.push(location);
+      });
+      state.data.trickySpots.forEach((spot) => {
+        const location = getTrickySpotLocation(spot);
+        if (location) locations.push(location);
+      });
+      if (locations.length === 0) return;
+      const map = state.map.instance || state.map.miniInstance;
+      if (!map) return;
+      const bounds = window.L.latLngBounds(locations);
+      map.fitBounds(bounds.pad(0.25));
+    }
+
+    // ============================================================
+    // UI - DASHBOARD
+    // ============================================================
+
+    function renderDashboard() {
+      const pendingOrders = state.data.orders.filter((order) => order.status === STATUS.PENDING);
+      const deliveredOrders = state.data.orders.filter((order) => order.status === STATUS.DELIVERED);
+      elements.pendingOrdersValue.textContent = pendingOrders.length;
+      elements.pendingOrdersMeta.textContent = pendingOrders.length === 1 ? '1 order needs delivery' : `${pendingOrders.length} orders need delivery`;
+      elements.customersValue.textContent = state.data.customers.length;
+      elements.trickySpotsValue.textContent = state.data.trickySpots.length;
+      elements.deliveredOrdersValue.textContent = deliveredOrders.length;
+      elements.expiredOrdersValue.textContent = state.ui.lastExpiredExportCount || 0;
+
+      elements.sidebarDashboardCount.textContent = pendingOrders.length;
+      elements.sidebarOrdersCount.textContent = state.data.orders.length;
+      elements.sidebarCustomersCount.textContent = state.data.customers.length;
+      elements.sidebarTrickyCount.textContent = state.data.trickySpots.length;
+
+      renderDashboardPendingList(pendingOrders);
+      renderDashboardMap();
+    }
+
+    function renderDashboardPendingList(pendingOrders) {
+      if (pendingOrders.length === 0) {
+        elements.dashboardPendingList.innerHTML = '<div class="empty-state">No pending orders right now. Relax for a moment or create a new order.</div>';
+        return;
+      }
+
+      const items = pendingOrders.slice(0, 6).map((order) => {
+        const customer = getOrderCustomer(order);
+        const itemCount = getOrderItemCount(order);
+        return `
+          <div class="list-item">
+            <div>
+              <p class="item-title">${escapeHtml(getCustomerDisplayName(customer))}</p>
+              <p class="item-subtitle">${escapeHtml(formatItems(order.items))} · ${itemCount} item${itemCount === 1 ? '' : 's'}</p>
+            </div>
+            <span class="badge pending">Pending</span>
+          </div>
+        `;
+      }).join('');
+
+      elements.dashboardPendingList.innerHTML = items;
+    }
+
+    // ============================================================
+    // UI - ORDERS
+    // ============================================================
+
+    function renderOrders() {
+      renderOrderFilterButtons();
+      renderOrdersList();
+      renderOrderCustomerSearch();
+      renderOrderEditingState();
+    }
+
+    function renderOrderFilterButtons() {
+      const buttons = elements.orderFilterRow.querySelectorAll('[data-order-filter]');
+      buttons.forEach((button) => {
+        const isActive = button.dataset.orderFilter === state.ui.orderFilter;
+        button.classList.toggle('is-active', isActive);
+      });
+    }
+
+    function getFilteredOrders() {
+      const filter = state.ui.orderFilter;
+      if (filter === ORDER_FILTERS.ALL) return state.data.orders;
+      return state.data.orders.filter((order) => order.status === filter);
+    }
+
+    function renderOrdersList() {
+      const orders = getFilteredOrders();
+      if (orders.length === 0) {
+        elements.ordersList.innerHTML = '<div class="empty-state">No orders match this view yet.</div>';
+        return;
+      }
+
+      elements.ordersList.innerHTML = orders.map((order) => renderOrderCard(order)).join('');
+    }
+
+    function renderOrderCard(order) {
+      const customer = getOrderCustomer(order);
+      const customerName = getCustomerDisplayName(customer);
+      const statusClass = order.status === STATUS.DELIVERED ? 'delivered' : 'pending';
+      const statusLabel = getStatusLabel(order.status);
+      const deliveryButton = order.status === STATUS.PENDING ? `
+        <button class="button button-secondary button-small" data-action="mark-delivered" data-id="${order.id}" type="button">Mark as Delivered</button>
+      ` : '';
+
+      return `
+        <article class="order-card">
+          <div class="card-title-row">
+            <div>
+              <h4>${escapeHtml(customerName)}</h4>
+              <p class="section-note">${escapeHtml(formatDate(order.created_at))}</p>
+            </div>
+            <span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span>
+          </div>
+          <p class="item-subtitle"><strong>Items:</strong> ${escapeHtml(formatItems(order.items))}</p>
+          <p class="item-subtitle"><strong>Notes:</strong> ${escapeHtml(order.notes || 'No notes')}</p>
+          <div class="meta-row">
+            <span class="badge neutral">${getOrderItemCount(order)} item${getOrderItemCount(order) === 1 ? '' : 's'}</span>
+            <span class="badge neutral">${escapeHtml(formatCompactDate(order.created_at))}</span>
+            ${order.delivered_at ? `<span class="badge delivered">Delivered ${escapeHtml(formatCompactDate(order.delivered_at))}</span>` : ''}
+          </div>
+          <div class="card-actions">
+            <button class="order-customer-link" data-action="select-customer" data-id="${customer?.id || ''}" type="button">View customer</button>
+            ${deliveryButton}
+            <button class="button button-ghost button-small" data-action="edit-order" data-id="${order.id}" type="button">Edit</button>
+            <button class="button button-danger button-small" data-action="delete-order" data-id="${order.id}" type="button">Delete</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderOrderCustomerSearch() {
+      const query = elements.orderCustomerSearch.value.trim().toLowerCase();
+      const matches = state.data.customers.filter((customer) => getCustomerFullText(customer).toLowerCase().includes(query)).slice(0, 8);
+
+      if (matches.length === 0) {
+        elements.customerSearchResults.innerHTML = '<div class="empty-state">No matching customer. Tick “Create a new customer” to add one.</div>';
+      } else {
+        elements.customerSearchResults.innerHTML = matches.map((customer) => {
+          const isSelected = customer.id === state.ui.selectedOrderCustomerId;
+          return `
+            <button class="search-result ${isSelected ? 'is-selected' : ''}" data-action="pick-order-customer" data-id="${customer.id}" type="button">
+              <strong>${escapeHtml(customer.name)}</strong>
+              <span>${escapeHtml(customer.address)}${customer.phone ? ` · ${escapeHtml(customer.phone)}` : ''}</span>
+            </button>
+          `;
+        }).join('');
+      }
+
+      renderSelectedOrderCustomerSummary();
+    }
+
+    function renderSelectedOrderCustomerSummary() {
+      const customer = state.data.customers.find((entry) => entry.id === state.ui.selectedOrderCustomerId) || null;
+      if (!customer) {
+        elements.selectedCustomerSummary.classList.add('hidden');
+        elements.selectedCustomerSummary.innerHTML = '';
+        return;
+      }
+
+      elements.selectedCustomerSummary.classList.remove('hidden');
+      elements.selectedCustomerSummary.innerHTML = `
+        <strong>${escapeHtml(customer.name)}</strong>
+        <div class="small-copy">${escapeHtml(customer.address)}</div>
+        <div class="small-copy">${escapeHtml(customer.phone || 'No phone')}</div>
+        <div class="small-copy">${customer.latitude && customer.longitude ? `Pin: ${escapeHtml(customer.latitude)}, ${escapeHtml(customer.longitude)}` : 'No pin yet'}</div>
+      `;
+    }
+
+    function renderOrderEditingState() {
+      const isEditing = Boolean(state.ui.editingOrderId);
+      resetFormBanner(elements.orderEditBanner, isEditing);
+      elements.saveOrderButton.textContent = isEditing ? 'Update order' : 'Save order';
+      elements.cancelOrderEditButton.classList.toggle('hidden', !isEditing);
+    }
+
+    function renderOrderItemsEditor(initialItems = [DEFAULT_ORDER_ITEM]) {
+      const items = initialItems.length > 0 ? initialItems : [DEFAULT_ORDER_ITEM];
+      elements.orderItemsEditor.innerHTML = items.map((item, index) => renderOrderItemRow(item, index)).join('');
+    }
+
+    function renderOrderItemRow(value, index) {
+      return `
+        <div class="item-row" data-item-row="${index}">
+          <input type="text" class="order-item-input" data-item-index="${index}" value="${escapeHtml(value)}" placeholder="${NEW_ORDER_ITEM_PLACEHOLDER}" />
+          <button type="button" class="button button-danger button-small" data-action="remove-order-item" data-index="${index}">Remove</button>
+        </div>
+      `;
+    }
+
+    function collectOrderItems() {
+      const itemInputs = Array.from(elements.orderItemsEditor.querySelectorAll('.order-item-input'));
+      return normalizeItems(itemInputs.map((input) => input.value));
+    }
+
+    function resetOrderForm() {
+      state.ui.editingOrderId = null;
+      state.ui.selectedOrderCustomerId = null;
+      elements.orderCustomerSearch.value = '';
+      elements.useNewCustomerToggle.checked = false;
+      elements.newCustomerFields.classList.add('hidden');
+      elements.newCustomerName.value = '';
+      elements.newCustomerAddress.value = '';
+      elements.newCustomerPhone.value = '';
+      elements.newCustomerLatitude.value = '';
+      elements.newCustomerLongitude.value = '';
+      elements.orderNotes.value = '';
+      renderOrderItemsEditor([DEFAULT_ORDER_ITEM]);
+      renderSelectedOrderCustomerSummary();
+      renderOrderEditingState();
+      renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
+      renderOrderCustomerSearch();
+    }
+
+    function populateOrderForm(order) {
+      const customer = getOrderCustomer(order);
+      state.ui.editingOrderId = order.id;
+      state.ui.selectedOrderCustomerId = customer?.id || null;
+      elements.orderCustomerSearch.value = customer?.name || '';
+      elements.useNewCustomerToggle.checked = false;
+      elements.newCustomerFields.classList.add('hidden');
+      elements.newCustomerName.value = '';
+      elements.newCustomerAddress.value = '';
+      elements.newCustomerPhone.value = '';
+      elements.newCustomerLatitude.value = '';
+      elements.newCustomerLongitude.value = '';
+      elements.orderNotes.value = order.notes || '';
+      renderOrderItemsEditor(Array.isArray(order.items) && order.items.length > 0 ? order.items : [DEFAULT_ORDER_ITEM]);
+      renderSelectedOrderCustomerSummary();
+      renderOrderEditingState();
+      elements.saveOrderButton.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ============================================================
+    // UI - CUSTOMERS
+    // ============================================================
+
+    function renderCustomers() {
+      renderCustomersList();
+      renderCustomerEditingState();
+      renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
+      renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
+      renderCustomerHistory();
+    }
+
+    function renderCustomersList() {
+      if (state.data.customers.length === 0) {
+        elements.customersList.innerHTML = '<div class="empty-state">No customers saved yet. Add the first household here.</div>';
+        return;
+      }
+
+      elements.customersList.innerHTML = state.data.customers.map((customer) => {
+        const isSelected = customer.id === state.ui.selectedCustomerHistoryId;
+        return `
+          <article class="customer-card ${isSelected ? 'is-selected' : ''}">
+            <div class="card-title-row">
+              <div>
+                <h4>${escapeHtml(customer.name)}</h4>
+                <p class="section-note">${escapeHtml(customer.address)}</p>
+              </div>
+              <span class="badge neutral">${escapeHtml(customer.phone || 'No phone')}</span>
+            </div>
+            <div class="meta-row">
+              <span class="badge neutral">${customer.latitude && customer.longitude ? 'Pinned' : 'No pin yet'}</span>
+              <span class="badge neutral">${escapeHtml(formatDateOnly(customer.created_at))}</span>
+            </div>
+            <div class="card-actions">
+              <button class="button button-secondary button-small" data-action="view-customer-history" data-id="${customer.id}" type="button">View orders</button>
+              <button class="button button-ghost button-small" data-action="edit-customer" data-id="${customer.id}" type="button">Edit</button>
+              <button class="button button-danger button-small" data-action="delete-customer" data-id="${customer.id}" type="button">Delete</button>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderCustomerEditingState() {
+      const isEditing = Boolean(state.ui.editingCustomerId);
+      resetFormBanner(elements.customerEditBanner, isEditing);
+      elements.saveCustomerButton.textContent = isEditing ? 'Update customer' : 'Save customer';
+      elements.cancelCustomerEditButton.classList.toggle('hidden', !isEditing);
+    }
+
+    function resetCustomerForm() {
+      state.ui.editingCustomerId = null;
+      elements.customerName.value = '';
+      elements.customerAddress.value = '';
+      elements.customerPhone.value = '';
+      elements.customerLatitude.value = '';
+      elements.customerLongitude.value = '';
+      renderCustomerEditingState();
+      renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
+    }
+
+    function populateCustomerForm(customer) {
+      state.ui.editingCustomerId = customer.id;
+      elements.customerName.value = customer.name || '';
+      elements.customerAddress.value = customer.address || '';
+      elements.customerPhone.value = customer.phone || '';
+      elements.customerLatitude.value = customer.latitude ?? '';
+      elements.customerLongitude.value = customer.longitude ?? '';
+      renderCustomerEditingState();
+      renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
+      elements.customerName.focus();
+    }
+
+    function renderCustomerHistory() {
+      const customer = state.data.customers.find((entry) => entry.id === state.ui.selectedCustomerHistoryId) || null;
+      if (!customer) {
+        elements.customerHistorySubtitle.textContent = 'Click a customer to view their orders.';
+        elements.customerHistoryList.innerHTML = '<div class="empty-state">No customer selected.</div>';
+        return;
+      }
+
+      const customerOrders = state.data.orders.filter((order) => order.customer_id === customer.id);
+      elements.customerHistorySubtitle.textContent = `${customer.name} has ${customerOrders.length} order${customerOrders.length === 1 ? '' : 's'}.`;
+
+      if (customerOrders.length === 0) {
+        elements.customerHistoryList.innerHTML = '<div class="empty-state">This customer has no orders yet.</div>';
+        return;
+      }
+
+      elements.customerHistoryList.innerHTML = customerOrders.map((order) => `
+        <div class="history-order">
+          <strong>${escapeHtml(formatItems(order.items))}</strong>
+          <div class="small-copy">${escapeHtml(getStatusLabel(order.status))} · ${escapeHtml(formatDate(order.created_at))}</div>
+          <div class="small-copy">${escapeHtml(order.notes || 'No notes')}</div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================================
+    // UI - TRICKY SPOTS
+    // ============================================================
+
+    function renderTrickySpots() {
+      renderTrickySpotsList();
+      renderTrickySpotEditingState();
+      renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
+    }
+
+    function renderTrickySpotsList() {
+      if (state.data.trickySpots.length === 0) {
+        elements.trickySpotsList.innerHTML = '<div class="empty-state">No tricky spots saved yet. Add road notes or hazard pins here.</div>';
+        return;
+      }
+
+      elements.trickySpotsList.innerHTML = state.data.trickySpots.map((spot) => `
+        <article class="spot-card ${spot.id === state.ui.editingTrickySpotId ? 'is-selected' : ''}">
+          <div class="card-title-row">
+            <div>
+              <h4>${escapeHtml(spot.label)}</h4>
+              <p class="section-note">${escapeHtml(spot.notes || 'No notes')}</p>
+            </div>
+            <span class="badge warning">Spot</span>
+          </div>
+          <div class="meta-row">
+            <span class="badge neutral">${escapeHtml(spot.latitude)}, ${escapeHtml(spot.longitude)}</span>
+            <span class="badge neutral">${escapeHtml(formatDateOnly(spot.created_at))}</span>
+          </div>
+          <div class="card-actions">
+            <button class="button button-ghost button-small" data-action="edit-tricky-spot" data-id="${spot.id}" type="button">Edit</button>
+            <button class="button button-danger button-small" data-action="delete-tricky-spot" data-id="${spot.id}" type="button">Delete</button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderTrickySpotEditingState() {
+      const isEditing = Boolean(state.ui.editingTrickySpotId);
+      resetFormBanner(elements.trickySpotEditBanner, isEditing);
+      elements.saveTrickySpotButton.textContent = isEditing ? 'Update spot' : 'Save spot';
+      elements.cancelTrickySpotEditButton.classList.toggle('hidden', !isEditing);
+    }
+
+    function resetTrickySpotForm() {
+      state.ui.editingTrickySpotId = null;
+      elements.trickySpotLabel.value = '';
+      elements.trickySpotNotes.value = '';
+      elements.trickySpotLatitude.value = '';
+      elements.trickySpotLongitude.value = '';
+      renderTrickySpotEditingState();
+      renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
+    }
+
+    function populateTrickySpotForm(spot) {
+      state.ui.editingTrickySpotId = spot.id;
+      elements.trickySpotLabel.value = spot.label || '';
+      elements.trickySpotNotes.value = spot.notes || '';
+      elements.trickySpotLatitude.value = spot.latitude ?? '';
+      elements.trickySpotLongitude.value = spot.longitude ?? '';
+      renderTrickySpotEditingState();
+      renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
+      elements.trickySpotLabel.focus();
+    }
+
+    // ============================================================
+    // EXPORT
+    // ============================================================
+
+    function exportOrdersToCSV(orders) {
+      if (!orders || orders.length === 0) return null;
+      const rows = [
+        ['order_id', 'customer_name', 'customer_address', 'items', 'notes', 'status', 'created_at', 'delivered_at']
+      ];
+
+      orders.forEach((order) => {
+        const customer = getOrderCustomer(order);
+        rows.push([
+          order.id,
+          customer?.name || '',
+          customer?.address || '',
+          formatItems(order.items),
+          order.notes || '',
+          order.status || '',
+          order.created_at || '',
+          order.delivered_at || ''
+        ]);
+      });
+
+      const csvContent = createCsvContent(rows);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${EXPORT_FILENAME_PREFIX}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 3000);
+      return true;
+    }
+
+    async function runAutoExport() {
+      if (!isOnline()) {
+        showToast('Auto-export skipped while offline.', MESSAGE_TYPES.WARNING, 'Offline');
+        return;
+      }
+
+      const expired = await fetchExpiredOrders();
+      state.ui.lastExpiredExportCount = expired.length;
+      if (expired.length === 0) return;
+      exportOrdersToCSV(expired);
+      await deleteOrders(expired.map((order) => order.id));
+      state.data.orders = state.data.orders.filter((order) => !expired.some((expiredOrder) => expiredOrder.id === order.id));
+      renderApp();
+      showToast(`${expired.length} old order${expired.length === 1 ? '' : 's'} exported and removed.`, MESSAGE_TYPES.SUCCESS, 'Auto-export');
+    }
+
+    // ============================================================
+    // ROUTER
+    // ============================================================
+
+    function setCurrentTab(tab) {
+      if (!Object.values(TABS).includes(tab)) {
+        tab = TABS.DASHBOARD;
+      }
+      state.currentTab = tab;
+      window.location.hash = tab === TABS.DASHBOARD ? '' : tab;
+      renderRouter();
+    }
+
+    function resolveTabFromHash() {
+      const hash = window.location.hash.replace('#', '');
+      if (Object.values(TABS).includes(hash)) return hash;
+      return TABS.DASHBOARD;
+    }
+
+    function renderRouter() {
+      const tab = state.currentTab;
+      document.querySelectorAll('.tab-panel').forEach((panel) => {
+        panel.classList.toggle('is-active', panel.dataset.panel === tab);
+      });
+      document.querySelectorAll('[data-tab]').forEach((button) => {
+        button.classList.toggle('is-active', button.dataset.tab === tab);
+      });
+      document.querySelectorAll('[data-panel]').forEach((panel) => {
+        if (panel.dataset.panel === tab) {
+          window.requestAnimationFrame(() => {
+            if (tab === TABS.MAP) {
+              renderFullMap();
+            } else if (tab === TABS.DASHBOARD) {
+              renderDashboardMap();
+            } else if (tab === TABS.CUSTOMERS) {
+              renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
+              renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
+            } else if (tab === TABS.TRICKY_SPOTS) {
+              renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
+            }
+          });
+        }
+      });
+      elements.headerTitle.textContent = APP_TITLE_BY_TAB[tab];
+      elements.headerSubtitle.textContent = getHeaderSubtitle(tab);
+    }
+
+    function getHeaderSubtitle(tab) {
+      if (tab === TABS.ORDERS) return 'Manage orders and delivery status';
+      if (tab === TABS.CUSTOMERS) return 'Keep customer records ready';
+      if (tab === TABS.MAP) return 'See pins and delivery paths';
+      if (tab === TABS.TRICKY_SPOTS) return 'Mark spots that need extra care';
+      return 'Your daily order snapshot';
+    }
+
+    // ============================================================
+    // UI - ROOT / APP STATE
+    // ============================================================
+
+    function renderLoginState() {
+      elements.authShell.classList.remove('hidden');
+      elements.appShell.classList.remove('is-visible');
+      elements.appShell.style.display = 'none';
+      elements.authShell.style.display = 'grid';
+      elements.sidebarUserName.textContent = 'Signed out';
+      elements.sidebarTeamName.textContent = 'Waiting for login';
+      elements.loginButton.disabled = false;
+      elements.loadingOverlay.classList.remove('is-visible');
+    }
+
+    function renderAppState() {
+      elements.authShell.style.display = 'none';
+      elements.appShell.style.display = 'grid';
+      elements.appShell.classList.add('is-visible');
+      elements.sidebarUserName.textContent = state.user?.email || 'Signed in';
+      elements.sidebarTeamName.textContent = state.teamId ? `Team ID: ${state.teamId}` : 'Team ready';
+      elements.connectionStatusBanner.querySelector('strong').textContent = isOnline() ? 'Online' : 'Offline';
+      elements.connectionStatusBanner.querySelector('.status-copy').textContent = isOnline() ? 'All data syncs through Supabase.' : 'Some actions are waiting for a connection.';
+      elements.loginButton.disabled = false;
+    }
+
+    function setConnectionState() {
+      const online = isOnline();
+      elements.offlineBanner.classList.toggle('is-visible', !online);
+      elements.connectionStatusBanner.querySelector('strong').textContent = online ? 'Online' : 'Offline';
+      elements.connectionStatusBanner.querySelector('.status-copy').textContent = online ? 'All data syncs through Supabase.' : 'Some actions are waiting for a connection.';
+    }
+
+    function syncRememberMeState() {
+      state.ui.rememberMe = elements.rememberMe.checked;
+    }
+
+    function renderApp() {
+      renderAppState();
+      renderDashboard();
+      renderOrders();
+      renderCustomers();
+      renderTrickySpots();
+      renderRouter();
+      refreshMaps();
+      fitMapToData();
+      renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
+      renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
+      renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
+    }
+
+    function resetAppSelections() {
+      state.ui.selectedCustomerHistoryId = null;
+      state.ui.selectedCustomerId = null;
+      state.ui.selectedOrderCustomerId = null;
+      state.ui.editingCustomerId = null;
+      state.ui.editingTrickySpotId = null;
+      state.ui.editingOrderId = null;
+      state.ui.orderFilter = ORDER_FILTERS.PENDING;
+    }
+
+    // ============================================================
+    // DATA LOADING
+    // ============================================================
+
+    async function loadAppData() {
+      setLoading(true, 'Loading team data...');
+      try {
+        const [customersResult, ordersResult, trickySpotsResult] = await Promise.allSettled([
+          fetchCustomers(),
+          fetchOrders(),
+          fetchTrickySpots()
+        ]);
+
+        if (customersResult.status === 'fulfilled') {
+          state.data.customers = customersResult.value;
+        } else {
+          showGlobalError(customersResult.reason, LOAD_ERROR_MESSAGE, 'Customers');
+        }
+
+        if (ordersResult.status === 'fulfilled') {
+          state.data.orders = ordersResult.value;
+        } else {
+          showGlobalError(ordersResult.reason, LOAD_ERROR_MESSAGE, 'Orders');
+        }
+
+        if (trickySpotsResult.status === 'fulfilled') {
+          state.data.trickySpots = trickySpotsResult.value;
+        } else {
+          showGlobalError(trickySpotsResult.reason, LOAD_ERROR_MESSAGE, 'Tricky spots');
+        }
+
+        if (state.data.customers.length > 0 && !state.ui.selectedCustomerHistoryId) {
+          state.ui.selectedCustomerHistoryId = state.data.customers[0].id;
+        }
+        renderApp();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function loginAndLoad(email, password) {
+      setLoading(true, 'Signing in...');
+      try {
+        await signIn(email, password);
+        renderAppState();
+        await loadAppData();
+        await runAutoExport();
+        showToast('Welcome back to BhonLab.', MESSAGE_TYPES.SUCCESS, 'Signed in');
+        setCurrentTab(TABS.DASHBOARD);
+      } catch (error) {
+        showGlobalError(error, LOGIN_ERROR_MESSAGE, 'Sign in failed');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ============================================================
+    // EVENT HANDLERS
+    // ============================================================
+
+    function bindTabButtons() {
+      document.querySelectorAll('[data-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+          setCurrentTab(button.dataset.tab);
+        });
+      });
+    }
+
+    function bindOrderFilterButtons() {
+      elements.orderFilterRow.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-order-filter]');
+        if (!button) return;
+        state.ui.orderFilter = button.dataset.orderFilter;
+        renderOrders();
+      });
+    }
+
+    function bindOrderItemEditor() {
+      elements.addItemButton.addEventListener('click', () => {
+        const currentItems = collectOrderItems();
+        const nextItems = currentItems.length > 0 ? [...currentItems, ''] : [''];
+        renderOrderItemsEditor(nextItems);
+      });
+
+      elements.orderItemsEditor.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-action="remove-order-item"]');
+        if (!button) return;
+        const itemRows = Array.from(elements.orderItemsEditor.querySelectorAll('.item-row'));
+        const nextItems = itemRows
+          .filter((row, index) => index !== Number(button.dataset.index))
+          .map((row) => row.querySelector('.order-item-input').value);
+        renderOrderItemsEditor(nextItems.length > 0 ? nextItems : [DEFAULT_ORDER_ITEM]);
+      });
+    }
+
+    function bindCustomerSearch() {
+      elements.orderCustomerSearch.addEventListener('input', () => {
+        state.ui.selectedOrderCustomerId = null;
+        renderOrderCustomerSearch();
+      });
+
+      elements.customerSearchResults.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-action="pick-order-customer"]');
+        if (!button) return;
+        state.ui.selectedOrderCustomerId = button.dataset.id;
+        elements.orderCustomerSearch.value = state.data.customers.find((customer) => customer.id === button.dataset.id)?.name || '';
+        elements.useNewCustomerToggle.checked = false;
+        elements.newCustomerFields.classList.add('hidden');
+        renderOrderCustomerSearch();
+        renderSelectedOrderCustomerSummary();
+      });
+
+      elements.useNewCustomerToggle.addEventListener('change', () => {
+        const shouldShow = elements.useNewCustomerToggle.checked;
+        elements.newCustomerFields.classList.toggle('hidden', !shouldShow);
+        if (shouldShow) {
+          state.ui.selectedOrderCustomerId = null;
+          elements.selectedCustomerSummary.classList.add('hidden');
+        }
+        renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
+        renderOrderCustomerSearch();
+      });
+    }
+
+    function bindForms() {
+      elements.loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        syncRememberMeState();
+        const email = elements.loginEmail.value.trim();
+        const password = elements.loginPassword.value;
+        if (!email || !password) {
+          showToast('Please enter both email and password.', MESSAGE_TYPES.WARNING, 'Missing fields');
+          return;
+        }
+        await loginAndLoad(email, password);
+      });
+
+      elements.orderForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await handleOrderSubmit();
+      });
+
+      elements.customerForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await handleCustomerSubmit();
+      });
+
+      elements.trickySpotForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await handleTrickySpotSubmit();
+      });
+    }
+
+    function bindActionButtons() {
+      elements.signOutButton.addEventListener('click', async () => {
+        setLoading(true, 'Signing out...');
+        try {
+          await signOut();
+          showToast('You are signed out.', MESSAGE_TYPES.INFO, 'Signed out');
+        } catch (error) {
+          showGlobalError(error, 'We could not sign you out.', 'Sign out failed');
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      elements.refreshButton.addEventListener('click', async () => {
+        await refreshData();
+      });
+
+      elements.quickAddOrderButton.addEventListener('click', () => setCurrentTab(TABS.ORDERS));
+      elements.dashboardAddOrderButton.addEventListener('click', () => setCurrentTab(TABS.ORDERS));
+      elements.dashboardCustomersButton.addEventListener('click', () => setCurrentTab(TABS.CUSTOMERS));
+      elements.openMapButton.addEventListener('click', () => setCurrentTab(TABS.MAP));
+
+      elements.cancelOrderEditButton.addEventListener('click', () => {
+        resetOrderForm();
+      });
+
+      elements.cancelCustomerEditButton.addEventListener('click', () => {
+        resetCustomerForm();
+      });
+
+      elements.cancelTrickySpotEditButton.addEventListener('click', () => {
+        resetTrickySpotForm();
+      });
+
+      elements.clearCustomerSelectionButton.addEventListener('click', () => {
+        state.ui.selectedCustomerHistoryId = null;
+        renderCustomerHistory();
+        renderCustomersList();
+      });
+    }
+
+    function bindDataActionDelegation() {
+      document.body.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-action]');
+        if (!button) return;
+        const { action, id } = button.dataset;
+
+        switch (action) {
+          case 'mark-delivered':
+            await handleMarkDelivered(id);
+            break;
+          case 'edit-order':
+            handleEditOrder(id);
+            break;
+          case 'delete-order':
+            await handleDeleteOrder(id);
+            break;
+          case 'select-customer':
+            handleSelectCustomer(id);
+            break;
+          case 'view-customer-history':
+            handleSelectCustomer(id);
+            break;
+          case 'edit-customer':
+            handleEditCustomer(id);
+            break;
+          case 'delete-customer':
+            await handleDeleteCustomer(id);
+            break;
+          case 'edit-tricky-spot':
+            handleEditTrickySpot(id);
+            break;
+          case 'delete-tricky-spot':
+            await handleDeleteTrickySpot(id);
+            break;
+          default:
+            break;
+        }
+      });
+    }
+
+    function bindConnectivityEvents() {
+      window.addEventListener('online', () => {
+        setConnectionState();
+        showToast('Connection restored.', MESSAGE_TYPES.SUCCESS, 'Back online');
+      });
+      window.addEventListener('offline', () => {
+        setConnectionState();
+        showToast('You are offline right now.', MESSAGE_TYPES.WARNING, 'Offline');
+      });
+    }
+
+    function bindRouterEvents() {
+      window.addEventListener('hashchange', () => {
+        state.currentTab = resolveTabFromHash();
+        renderRouter();
+      });
+    }
+
+    function bindRememberMe() {
+      elements.rememberMe.addEventListener('change', () => {
+        syncRememberMeState();
+      });
+    }
+
+    function bindLocationPickingControls() {
+      const previewBindings = [
+        ['newCustomerLatitude', 'newCustomerLongitude', LOCATION_TARGETS.NEW_CUSTOMER],
+        ['customerLatitude', 'customerLongitude', LOCATION_TARGETS.CUSTOMER],
+        ['trickySpotLatitude', 'trickySpotLongitude', LOCATION_TARGETS.TRICKY_SPOT]
+      ];
+
+      previewBindings.forEach(([latId, lngId, target]) => {
+        elements[latId].addEventListener('input', () => renderLocationPreview(target));
+        elements[lngId].addEventListener('input', () => renderLocationPreview(target));
+      });
+
+      elements.newCustomerPickMapButton.addEventListener('click', () => openPinPicker(LOCATION_TARGETS.NEW_CUSTOMER));
+      elements.customerPickMapButton.addEventListener('click', () => openPinPicker(LOCATION_TARGETS.CUSTOMER));
+      elements.trickySpotPickMapButton.addEventListener('click', () => openPinPicker(LOCATION_TARGETS.TRICKY_SPOT));
+
+      elements.mapPickerCancelButton.addEventListener('click', () => closePinPicker());
+      elements.mapPickerConfirmButton.addEventListener('click', () => confirmPinPicker());
+      elements.mapPickerOverlay.addEventListener('click', (event) => {
+        if (event.target === elements.mapPickerOverlay) {
+          closePinPicker();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (!state.ui.mapPicker.active) return;
+        if (event.key === 'Escape') {
+          closePinPicker();
+        }
+      });
+    }
+
+    function bindMiniDashboardFocus() {
+      elements.dashboardMiniMap.addEventListener('click', () => {
+        if (state.currentTab !== TABS.DASHBOARD) {
+          setCurrentTab(TABS.DASHBOARD);
+        }
+      });
+    }
+
+    async function refreshData() {
+      if (!state.user || !state.teamId) {
+        showToast('Sign in first to refresh data.', MESSAGE_TYPES.WARNING, 'Not signed in');
+        return;
+      }
+      setLoading(true, 'Refreshing data...');
+      try {
+        await loadAppData();
+        showToast('Data refreshed.', MESSAGE_TYPES.SUCCESS, 'Refresh complete');
+      } catch (error) {
+        showGlobalError(error, LOAD_ERROR_MESSAGE, 'Refresh failed');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ============================================================
+    // FORM ACTIONS
+    // ============================================================
+
+    async function handleOrderSubmit() {
+      const hasSelectedCustomer = Boolean(state.ui.selectedOrderCustomerId);
+      const useNewCustomer = elements.useNewCustomerToggle.checked;
+
+      if (!hasSelectedCustomer && !useNewCustomer) {
+        showToast('Please pick a customer or choose to create a new one.', MESSAGE_TYPES.WARNING, 'Order needs a customer');
+        return;
+      }
+
+      const items = collectOrderItems();
+      if (items.length === 0) {
+        showToast('Please add at least one item.', MESSAGE_TYPES.WARNING, 'Missing items');
+        return;
+      }
+
+      setLoading(true, state.ui.editingOrderId ? 'Updating order...' : 'Saving order...');
+      try {
+        let customerId = state.ui.selectedOrderCustomerId;
+
+        if (useNewCustomer) {
+          const customerName = elements.newCustomerName.value.trim();
+          const customerAddress = elements.newCustomerAddress.value.trim();
+          const customerPhone = elements.newCustomerPhone.value.trim();
+          const latitude = parseNumber(elements.newCustomerLatitude.value);
+          const longitude = parseNumber(elements.newCustomerLongitude.value);
+
+          if (!customerName || !customerAddress) {
+            showToast('New customer needs a name and address.', MESSAGE_TYPES.WARNING, 'Missing customer info');
+            setLoading(false);
+            return;
+          }
+
+          const newCustomer = await insertCustomer({
+            name: customerName,
+            address: customerAddress,
+            phone: customerPhone,
+            latitude,
+            longitude
+          });
+          customerId = newCustomer.id;
+        }
+
+        if (state.ui.editingOrderId) {
+          const existingOrder = state.data.orders.find((order) => order.id === state.ui.editingOrderId);
+          await updateOrder(state.ui.editingOrderId, {
+            customer_id: customerId,
+            items,
+            notes: elements.orderNotes.value.trim(),
+            status: existingOrder?.status || STATUS.PENDING,
+            delivered_at: existingOrder?.delivered_at || null
+          });
+          state.ui.editingOrderId = null;
+        } else {
+          await insertOrder({
+            customer_id: customerId,
+            items,
+            notes: elements.orderNotes.value.trim(),
+            status: STATUS.PENDING
+          });
+        }
+
+        showToast('Order saved.', MESSAGE_TYPES.SUCCESS, 'Done');
+        resetOrderForm();
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Order not saved');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function handleCustomerSubmit() {
+      const payload = {
+        name: elements.customerName.value.trim(),
+        address: elements.customerAddress.value.trim(),
+        phone: elements.customerPhone.value.trim(),
+        latitude: parseNumber(elements.customerLatitude.value),
+        longitude: parseNumber(elements.customerLongitude.value)
+      };
+
+      if (!payload.name || !payload.address) {
+        showToast('Customer name and address are required.', MESSAGE_TYPES.WARNING, 'Missing fields');
+        return;
+      }
+
+      if (state.ui.editingCustomerId) {
+        if (customerNameExists(payload.name, state.ui.editingCustomerId)) {
+          showToast('That customer name already exists. Please use a different name.', MESSAGE_TYPES.WARNING, 'Duplicate name');
+          return;
+        }
+      } else if (customerNameExists(payload.name)) {
+        showToast('That customer name already exists. Please use a different name.', MESSAGE_TYPES.WARNING, 'Duplicate name');
+        return;
+      }
+
+      setLoading(true, state.ui.editingCustomerId ? 'Updating customer...' : 'Saving customer...');
+      try {
+        if (state.ui.editingCustomerId) {
+          await updateCustomer(state.ui.editingCustomerId, payload);
+          showToast('Customer updated.', MESSAGE_TYPES.SUCCESS, 'Done');
+        } else {
+          await insertCustomer(payload);
+          showToast('Customer saved.', MESSAGE_TYPES.SUCCESS, 'Done');
+        }
+        resetCustomerForm();
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Customer not saved');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function handleTrickySpotSubmit() {
+      const payload = {
+        label: elements.trickySpotLabel.value.trim(),
+        notes: elements.trickySpotNotes.value.trim(),
+        latitude: parseNumber(elements.trickySpotLatitude.value),
+        longitude: parseNumber(elements.trickySpotLongitude.value)
+      };
+
+      if (!payload.label || payload.latitude === null || payload.longitude === null) {
+        showToast('Please add a label and pin location.', MESSAGE_TYPES.WARNING, 'Missing spot details');
+        return;
+      }
+
+      setLoading(true, state.ui.editingTrickySpotId ? 'Updating tricky spot...' : 'Saving tricky spot...');
+      try {
+        if (state.ui.editingTrickySpotId) {
+          await updateTrickySpot(state.ui.editingTrickySpotId, payload);
+          showToast('Tricky spot updated.', MESSAGE_TYPES.SUCCESS, 'Done');
+        } else {
+          await insertTrickySpot(payload);
+          showToast('Tricky spot saved.', MESSAGE_TYPES.SUCCESS, 'Done');
+        }
+        resetTrickySpotForm();
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Tricky spot not saved');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function handleMarkDelivered(orderId) {
+      if (!orderId) return;
+      setLoading(true, 'Marking order delivered...');
+      try {
+        await markOrderDelivered(orderId);
+        showToast('Order marked as delivered.', MESSAGE_TYPES.SUCCESS, 'Updated');
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Could not update order');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function handleEditOrder(orderId) {
+      const order = state.data.orders.find((entry) => entry.id === orderId);
+      if (!order) return;
+      populateOrderForm(order);
+      setCurrentTab(TABS.ORDERS);
+    }
+
+    async function handleDeleteOrder(orderId) {
+      if (!orderId) return;
+      const confirmed = window.confirm('Delete this order?');
+      if (!confirmed) return;
+      setLoading(true, 'Deleting order...');
+      try {
+        await deleteOrders([orderId]);
+        showToast('Order deleted.', MESSAGE_TYPES.SUCCESS, 'Deleted');
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Could not delete order');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function handleSelectCustomer(customerId) {
+      const customer = state.data.customers.find((entry) => entry.id === customerId);
+      if (!customer) return;
+      state.ui.selectedCustomerHistoryId = customerId;
+      setCurrentTab(TABS.CUSTOMERS);
+      renderCustomers();
+      showToast(`Showing orders for ${customer.name}.`, MESSAGE_TYPES.INFO, 'Customer selected');
+    }
+
+    function handleEditCustomer(customerId) {
+      const customer = state.data.customers.find((entry) => entry.id === customerId);
+      if (!customer) return;
+      populateCustomerForm(customer);
+      setCurrentTab(TABS.CUSTOMERS);
+    }
+
+    async function handleDeleteCustomer(customerId) {
+      if (!customerId) return;
+      const confirmed = window.confirm('Delete this customer? Existing orders will be removed by the database cascade.');
+      if (!confirmed) return;
+      setLoading(true, 'Deleting customer...');
+      try {
+        await deleteCustomer(customerId);
+        if (state.ui.selectedCustomerHistoryId === customerId) {
+          state.ui.selectedCustomerHistoryId = null;
+        }
+        showToast('Customer deleted.', MESSAGE_TYPES.SUCCESS, 'Deleted');
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Could not delete customer');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function handleEditTrickySpot(spotId) {
+      const spot = state.data.trickySpots.find((entry) => entry.id === spotId);
+      if (!spot) return;
+      populateTrickySpotForm(spot);
+      setCurrentTab(TABS.TRICKY_SPOTS);
+    }
+
+    async function handleDeleteTrickySpot(spotId) {
+      if (!spotId) return;
+      const confirmed = window.confirm('Delete this tricky spot?');
+      if (!confirmed) return;
+      setLoading(true, 'Deleting tricky spot...');
+      try {
+        await deleteTrickySpot(spotId);
+        showToast('Tricky spot deleted.', MESSAGE_TYPES.SUCCESS, 'Deleted');
+        await loadAppData();
+      } catch (error) {
+        showGlobalError(error, SAVE_ERROR_MESSAGE, 'Could not delete tricky spot');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+
+    async function bootstrap() {
+      cacheElements();
+      setConnectionState();
+      bindTabButtons();
+      bindOrderFilterButtons();
+      bindOrderItemEditor();
+      bindCustomerSearch();
+      bindForms();
+      bindActionButtons();
+      bindLocationPickingControls();
+      bindDataActionDelegation();
+      bindConnectivityEvents();
+      bindRouterEvents();
+      bindRememberMe();
+      elements.loginButton.disabled = false;
+      elements.loginStatusBanner.querySelector('strong').textContent = 'Ready to start';
+      renderOrderItemsEditor([DEFAULT_ORDER_ITEM]);
+      renderLoginState();
+      state.currentTab = resolveTabFromHash();
+
+      try {
+        if (isSupabaseConfigured()) {
+          const session = await getSession();
+          if (session?.user) {
+            state.user = session.user;
+            state.teamId = await getTeamId(session.user.id);
+            renderAppState();
+            await loadAppData();
+            await runAutoExport();
+            setCurrentTab(state.currentTab);
+            showToast('Welcome back.', MESSAGE_TYPES.SUCCESS, 'Session restored');
+          }
+        } else {
+          elements.loginStatusBanner.querySelector('strong').textContent = 'Configure Supabase';
+          elements.loginStatusBanner.querySelector('.status-copy').textContent = 'Replace the placeholder URL and anon key before signing in.';
+        }
+      } catch (error) {
+        showGlobalError(error, LOAD_ERROR_MESSAGE, 'Startup');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  </script>
+</body>
+</html>
