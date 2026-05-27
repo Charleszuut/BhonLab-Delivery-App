@@ -5,7 +5,7 @@
 
 const SUPABASE_URL = 'https://kiczyofdkytwxaqrtrls.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BoOfC_0bSJWYxAggkWaIwg_lh3VANmc';
-
+ 
 let supabaseClient = null;
 
 function isSupabaseConfigured() {

@@ -795,6 +795,56 @@ body.is-pin-picking {
   border-color: rgba(201, 122, 26, 0.18);
 }
 
+.items-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(199, 107, 43, 0.08);
+  border: 1px solid rgba(199, 107, 43, 0.16);
+  color: var(--brand-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.order-notes {
+  margin: 6px 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.order-card .card-title-row,
+.customer-card .card-title-row {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.order-card .card-actions,
+.customer-card .card-actions {
+  margin-top: 10px;
+}
+
+.badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.muted-text {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .tab-filter-row {
   display: flex;
   flex-wrap: wrap;
@@ -839,6 +889,13 @@ body.is-pin-picking {
   max-height: 260px;
   overflow: auto;
   padding-right: 4px;
+}
+
+.search-hint {
+  padding: 10px 2px 2px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .search-result {

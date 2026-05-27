@@ -103,7 +103,7 @@
       <div class="sidebar-footer">
         <div class="user-chip">
           <strong id="sidebarUserName">Signed in</strong>
-          <span class="status-copy" id="sidebarTeamName">Team ready</span>
+          <span class="status-copy hidden" id="sidebarTeamName">Team ready</span>
         </div>
         <div class="status-banner" id="connectionStatusBanner">
           <strong>Online</strong>
@@ -244,8 +244,8 @@
                 </div>
                 <div class="form-grid compact">
                   <div class="form-field">
-                    <label for="orderCustomerSearch">Search customer</label>
-                    <input id="orderCustomerSearch" type="search" placeholder="Type customer name or address" autocomplete="off" />
+                    <label for="orderCustomerSearch">Find customer</label>
+                    <input id="orderCustomerSearch" type="search" placeholder="Search by name, address, or phone" autocomplete="off" />
                   </div>
                   <div class="search-results" id="customerSearchResults"></div>
                   <div class="selected-summary hidden" id="selectedCustomerSummary"></div>
@@ -561,7 +561,7 @@
       WARNING: 'warning'
     };
 
-    const DEFAULT_ORDER_ITEM = 'Item';
+    const DEFAULT_ORDER_ITEM = '';
     const NEW_ORDER_ITEM_PLACEHOLDER = 'Eggs, rice, cooking oil...';
     const EMPTY_LAT_LNG = '';
     const APP_TITLE_BY_TAB = {
@@ -1199,11 +1199,8 @@
     async function insertCustomer(data) {
       ensureOnlineForDatabase();
       ensureTeamContext();
-      if (!state.user?.id) {
-        throw new Error('Sign in again before adding customers.');
-      }
       const payload = {
-        user_id: state.user.id,
+        user_id: state.user?.id,
         team_id: state.teamId,
         name: data.name,
         address: data.address,
@@ -1272,7 +1269,11 @@
     async function insertOrder(data) {
       ensureOnlineForDatabase();
       ensureTeamContext();
+      if (!state.user?.id) {
+        throw new Error('Sign in again before saving orders.');
+      }
       const payload = {
+        user_id: state.user.id,
         team_id: state.teamId,
         customer_id: data.customer_id,
         items: data.items || [],
@@ -1471,6 +1472,14 @@
       state.map.layers[mapKey][layerKey] = layerGroup;
     }
 
+    function invalidateMapAfterRender(map) {
+      if (!map) return;
+      window.requestAnimationFrame(() => {
+        map.invalidateSize({ animate: false, pan: false });
+        window.setTimeout(() => map.invalidateSize({ animate: false, pan: false }), 80);
+      });
+    }
+
     function buildOrderMarker(order, customer, color) {
       const location = getCustomerLocation(customer);
       if (!location) return null;
@@ -1501,7 +1510,8 @@
 
     function renderDashboardMap() {
       const map = getOrCreateMap('miniInstance', 'dashboardMiniMap');
-      window.setTimeout(() => map.invalidateSize(), 100);
+      invalidateMapAfterRender(map);
+      map.setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM - 1, { animate: false });
       const pendingOrders = state.data.orders.filter((order) => order.status === STATUS.PENDING);
       addMarkersToMap('dashboard', 'orders', map, pendingOrders, (order) => {
         const customer = getOrderCustomer(order);
@@ -1512,7 +1522,7 @@
 
     function renderFullMap() {
       const map = getOrCreateMap('instance', 'fullMap');
-      window.setTimeout(() => map.invalidateSize(), 100);
+      invalidateMapAfterRender(map);
       addMarkersToMap('full', 'orders', map, state.data.orders, (order) => {
         const customer = getOrderCustomer(order);
         const color = order.status === STATUS.DELIVERED ? '#2f8f57' : '#2d6cdf';
@@ -1633,8 +1643,13 @@
       const customerName = getCustomerDisplayName(customer);
       const statusClass = order.status === STATUS.DELIVERED ? 'delivered' : 'pending';
       const statusLabel = getStatusLabel(order.status);
+      const itemChips = Array.isArray(order.items) && order.items.length > 0
+        ? order.items.map((item) => `<span class="item-chip">${escapeHtml(item)}</span>`).join('')
+        : '<span class="item-chip">No items</span>';
+      const notesHtml = order.notes ? `<p class="order-notes">📝 ${escapeHtml(order.notes)}</p>` : '';
+      const deliveredHtml = order.delivered_at ? `<p class="small-copy">Delivered: ${escapeHtml(formatDate(order.delivered_at))}</p>` : '';
       const deliveryButton = order.status === STATUS.PENDING ? `
-        <button class="button button-secondary button-small" data-action="mark-delivered" data-id="${order.id}" type="button">Mark as Delivered</button>
+        <button class="button button-primary button-small" data-action="mark-delivered" data-id="${order.id}" type="button">Mark as Delivered</button>
       ` : '';
 
       return `
@@ -1642,20 +1657,16 @@
           <div class="card-title-row">
             <div>
               <h4>${escapeHtml(customerName)}</h4>
-              <p class="section-note">${escapeHtml(formatDate(order.created_at))}</p>
+              <p class="small-copy">${escapeHtml(formatDate(order.created_at))}</p>
             </div>
             <span class="badge ${statusClass}">${escapeHtml(statusLabel)}</span>
           </div>
-          <p class="item-subtitle"><strong>Items:</strong> ${escapeHtml(formatItems(order.items))}</p>
-          <p class="item-subtitle"><strong>Notes:</strong> ${escapeHtml(order.notes || 'No notes')}</p>
-          <div class="meta-row">
-            <span class="badge neutral">${getOrderItemCount(order)} item${getOrderItemCount(order) === 1 ? '' : 's'}</span>
-            <span class="badge neutral">${escapeHtml(formatCompactDate(order.created_at))}</span>
-            ${order.delivered_at ? `<span class="badge delivered">Delivered ${escapeHtml(formatCompactDate(order.delivered_at))}</span>` : ''}
-          </div>
+          <div class="items-chip-row">${itemChips}</div>
+          ${notesHtml}
+          ${deliveredHtml}
           <div class="card-actions">
-            <button class="order-customer-link" data-action="select-customer" data-id="${customer?.id || ''}" type="button">View customer</button>
             ${deliveryButton}
+            <button class="button button-ghost button-small" data-action="select-customer" data-id="${customer?.id || ''}" type="button">View Customer</button>
             <button class="button button-ghost button-small" data-action="edit-order" data-id="${order.id}" type="button">Edit</button>
             <button class="button button-danger button-small" data-action="delete-order" data-id="${order.id}" type="button">Delete</button>
           </div>
@@ -1665,9 +1676,13 @@
 
     function renderOrderCustomerSearch() {
       const query = elements.orderCustomerSearch.value.trim().toLowerCase();
-      const matches = state.data.customers.filter((customer) => getCustomerFullText(customer).toLowerCase().includes(query)).slice(0, 8);
+      const matches = query
+        ? state.data.customers.filter((customer) => getCustomerFullText(customer).toLowerCase().includes(query)).slice(0, 8)
+        : [];
 
-      if (matches.length === 0) {
+      if (!query) {
+        elements.customerSearchResults.innerHTML = '<div class="search-hint">Type a name, address, or phone to find a customer.</div>';
+      } else if (matches.length === 0) {
         elements.customerSearchResults.innerHTML = '<div class="empty-state">No matching customer. Tick “Create a new customer” to add one.</div>';
       } else {
         elements.customerSearchResults.innerHTML = matches.map((customer) => {
@@ -1716,7 +1731,7 @@
     function renderOrderItemRow(value, index) {
       return `
         <div class="item-row" data-item-row="${index}">
-          <input type="text" class="order-item-input" data-item-index="${index}" value="${escapeHtml(value)}" placeholder="${NEW_ORDER_ITEM_PLACEHOLDER}" />
+          <input type="text" class="order-item-input" data-item-index="${index}" value="${escapeHtml(value || '')}" placeholder="e.g. egg tray, bear brand 300ml..." />
           <button type="button" class="button button-danger button-small" data-action="remove-order-item" data-index="${index}">Remove</button>
         </div>
       `;
@@ -1784,22 +1799,33 @@
       }
 
       elements.customersList.innerHTML = state.data.customers.map((customer) => {
-        const isSelected = customer.id === state.ui.selectedCustomerHistoryId;
+        const customerOrders = state.data.orders.filter((order) => order.customer_id === customer.id);
+        const orderCount = customerOrders.length;
+        const lastOrder = customerOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const lastOrderText = lastOrder ? `Last: ${formatCompactDate(lastOrder.created_at)}` : null;
+        const isPinned = Boolean(customer.latitude && customer.longitude);
+        const phoneHtml = customer.phone ? `<p class="small-copy">📞 ${escapeHtml(customer.phone)}</p>` : '';
+        const viewOnMapButton = isPinned ? `<button class="button button-ghost button-small" data-action="view-on-map" data-id="${customer.id}" type="button">View on Map</button>` : '';
         return `
-          <article class="customer-card ${isSelected ? 'is-selected' : ''}">
+          <article class="customer-card ${customer.id === state.ui.selectedCustomerHistoryId ? 'is-selected' : ''}">
             <div class="card-title-row">
               <div>
                 <h4>${escapeHtml(customer.name)}</h4>
-                <p class="section-note">${escapeHtml(customer.address)}</p>
+                <p class="small-copy">📍 ${escapeHtml(customer.address)}</p>
+                ${phoneHtml}
               </div>
-              <span class="badge neutral">${escapeHtml(customer.phone || 'No phone')}</span>
+              <div class="badge-col">
+                <span class="badge neutral">${orderCount > 0 ? `${orderCount} order${orderCount === 1 ? '' : 's'}` : 'No orders yet'}</span>
+                ${lastOrderText ? `<span class="small-copy muted-text">${escapeHtml(lastOrderText)}</span>` : ''}
+              </div>
             </div>
             <div class="meta-row">
-              <span class="badge neutral">${customer.latitude && customer.longitude ? 'Pinned' : 'No pin yet'}</span>
+              <span class="badge neutral">${isPinned ? 'Pinned' : 'No pin yet'}</span>
               <span class="badge neutral">${escapeHtml(formatDateOnly(customer.created_at))}</span>
             </div>
             <div class="card-actions">
-              <button class="button button-secondary button-small" data-action="view-customer-history" data-id="${customer.id}" type="button">View orders</button>
+              <button class="button button-primary button-small" data-action="quick-add-order" data-id="${customer.id}" type="button">New Order</button>
+              ${viewOnMapButton}
               <button class="button button-ghost button-small" data-action="edit-customer" data-id="${customer.id}" type="button">Edit</button>
               <button class="button button-danger button-small" data-action="delete-customer" data-id="${customer.id}" type="button">Delete</button>
             </div>
@@ -2046,17 +2072,26 @@
       elements.appShell.style.display = 'none';
       elements.authShell.style.display = 'grid';
       elements.sidebarUserName.textContent = 'Signed out';
-      elements.sidebarTeamName.textContent = 'Waiting for login';
+      elements.sidebarTeamName.textContent = '';
       elements.loginButton.disabled = false;
       elements.loadingOverlay.classList.remove('is-visible');
+    }
+
+    function getUserDisplayName(user) {
+      if (!user) return 'Signed in';
+      return user.user_metadata?.full_name
+        || user.user_metadata?.name
+        || user.user_metadata?.display_name
+        || user.email?.split('@')[0]
+        || 'Signed in';
     }
 
     function renderAppState() {
       elements.authShell.style.display = 'none';
       elements.appShell.style.display = 'grid';
       elements.appShell.classList.add('is-visible');
-      elements.sidebarUserName.textContent = state.user?.email || 'Signed in';
-      elements.sidebarTeamName.textContent = state.teamId ? `Team ID: ${state.teamId}` : 'Team ready';
+      elements.sidebarUserName.textContent = getUserDisplayName(state.user);
+      elements.sidebarTeamName.textContent = '';
       elements.connectionStatusBanner.querySelector('strong').textContent = isOnline() ? 'Online' : 'Offline';
       elements.connectionStatusBanner.querySelector('.status-copy').textContent = isOnline() ? 'All data syncs through Supabase.' : 'Some actions are waiting for a connection.';
       elements.loginButton.disabled = false;
@@ -2081,7 +2116,9 @@
       renderTrickySpots();
       renderRouter();
       refreshMaps();
-      fitMapToData();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => fitMapToData());
+      });
       renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
       renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
       renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
@@ -2416,6 +2453,11 @@
     // ============================================================
 
     async function handleOrderSubmit() {
+      console.log('[OrderSubmit] selectedOrderCustomerId:', state.ui.selectedOrderCustomerId);
+      console.log('[OrderSubmit] useNewCustomer:', elements.useNewCustomerToggle.checked);
+      console.log('[OrderSubmit] items:', collectOrderItems());
+      console.log('[OrderSubmit] teamId:', state.teamId);
+
       const hasSelectedCustomer = Boolean(state.ui.selectedOrderCustomerId);
       const useNewCustomer = elements.useNewCustomerToggle.checked;
 
@@ -2455,6 +2497,16 @@
             longitude
           });
           customerId = newCustomer.id;
+
+          if (!customerId) {
+            showToast('We could not create the new customer. Please try again.', MESSAGE_TYPES.ERROR, 'Customer not created');
+            return;
+          }
+        }
+
+        if (!customerId) {
+          showToast('Please choose a saved customer or finish creating the new one before saving.', MESSAGE_TYPES.WARNING, 'Order needs a customer');
+          return;
         }
 
         if (state.ui.editingOrderId) {
