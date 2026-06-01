@@ -42,7 +42,7 @@
         <form id="loginForm" class="form-grid" novalidate>
           <div class="form-field">
             <label for="loginEmail">Email</label>
-            <input type="email" id="loginEmail" name="email" autocomplete="email" placeholder="mother@bhonlab.com" required />
+            <input type="email" id="loginEmail" name="email" autocomplete="email" placeholder="name@example.com" required />
           </div>
           <div class="form-field">
             <label for="loginPassword">Password</label>
@@ -83,10 +83,10 @@
           <span class="status-copy hidden" id="sidebarTeamName">Team ready</span>
         </div>
         <div class="status-banner" id="connectionStatusBanner">
-          <strong>Online</strong>
-          <span class="status-copy">All data syncs through Supabase.</span>
+          <strong>Ready</strong>
+          <span class="status-copy">Your session is active.</span>
         </div>
-        <button class="button button-ghost" id="signOutButton" type="button">Sign out</button>
+        <button class="button button-ghost" id="signOutButton" type="button">Log out</button>
       </div>
     </aside>
 
@@ -99,6 +99,7 @@
         <div class="header-actions">
           <button class="button button-secondary button-small" id="refreshButton" type="button">Refresh</button>
           <button class="button button-primary button-small" id="quickAddOrderButton" type="button">Add Order</button>
+          <button class="button button-ghost button-small" id="headerSignOutButton" type="button">Log out</button>
         </div>
       </header>
 
@@ -623,7 +624,7 @@
         'authShell', 'appShell', 'loadingOverlay', 'loadingText', 'toastContainer', 'loginForm', 'loginEmail',
         'loginPassword', 'rememberMe', 'loginButton', 'loginStatusBanner', 'sidebarUserName', 'sidebarTeamName',
         'connectionStatusBanner', 'sidebarDashboardCount', 'sidebarOrdersCount', 'sidebarCustomersCount',
-        'sidebarTrickyCount', 'signOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
+        'sidebarTrickyCount', 'signOutButton', 'headerSignOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
         'quickAddOrderButton', 'openMapButton', 'dashboardAddOrderButton', 'dashboardCustomersButton',
         'offlineBanner', 'pendingOrdersValue', 'pendingOrdersMeta', 'customersValue', 'trickySpotsValue',
         'deliveredOrdersValue', 'expiredOrdersValue', 'dashboardPendingList', 'dashboardMiniMap', 'ordersList',
@@ -2052,6 +2053,9 @@
       elements.sidebarTeamName.textContent = '';
       elements.loginButton.disabled = false;
       elements.loadingOverlay.classList.remove('is-visible');
+      if (elements.headerSignOutButton) {
+        elements.headerSignOutButton.classList.add('hidden');
+      }
     }
 
     function getUserDisplayName(user) {
@@ -2069,16 +2073,19 @@
       elements.appShell.classList.add('is-visible');
       elements.sidebarUserName.textContent = getUserDisplayName(state.user);
       elements.sidebarTeamName.textContent = '';
-      elements.connectionStatusBanner.querySelector('strong').textContent = isOnline() ? 'Online' : 'Offline';
-      elements.connectionStatusBanner.querySelector('.status-copy').textContent = isOnline() ? 'All data syncs through Supabase.' : 'Some actions are waiting for a connection.';
+      elements.connectionStatusBanner.querySelector('strong').textContent = 'Ready';
+      elements.connectionStatusBanner.querySelector('.status-copy').textContent = 'Your account is signed in.';
       elements.loginButton.disabled = false;
+      if (elements.headerSignOutButton) {
+        elements.headerSignOutButton.classList.remove('hidden');
+      }
     }
 
     function setConnectionState() {
       const online = isOnline();
       elements.offlineBanner.classList.toggle('is-visible', !online);
-      elements.connectionStatusBanner.querySelector('strong').textContent = online ? 'Online' : 'Offline';
-      elements.connectionStatusBanner.querySelector('.status-copy').textContent = online ? 'All data syncs through Supabase.' : 'Some actions are waiting for a connection.';
+      elements.connectionStatusBanner.querySelector('strong').textContent = online ? 'Ready' : 'Offline';
+      elements.connectionStatusBanner.querySelector('.status-copy').textContent = online ? 'Your account is signed in.' : 'Some actions are waiting for a connection.';
     }
 
     function syncRememberMeState() {
@@ -2276,6 +2283,12 @@
           setLoading(false);
         }
       });
+
+      if (elements.headerSignOutButton) {
+        elements.headerSignOutButton.addEventListener('click', async () => {
+          elements.signOutButton.click();
+        });
+      }
 
       elements.refreshButton.addEventListener('click', async () => {
         await refreshData();
