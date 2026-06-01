@@ -1495,6 +1495,7 @@
     function renderFullMap() {
       const map = getOrCreateMap('instance', 'fullMap');
       invalidateMapAfterRender(map);
+      map.setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM, { animate: false });
       addMarkersToMap('full', 'orders', map, state.data.orders, (order) => {
         const customer = getOrderCustomer(order);
         const color = order.status === STATUS.DELIVERED ? '#2f8f57' : '#2d6cdf';
@@ -2080,9 +2081,6 @@
       renderTrickySpots();
       renderRouter();
       refreshMaps();
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => fitMapToData());
-      });
       renderLocationPreview(LOCATION_TARGETS.NEW_CUSTOMER);
       renderLocationPreview(LOCATION_TARGETS.CUSTOMER);
       renderLocationPreview(LOCATION_TARGETS.TRICKY_SPOT);
