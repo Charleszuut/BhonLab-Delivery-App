@@ -48,10 +48,14 @@
             <label for="loginPassword">Password</label>
             <input type="password" id="loginPassword" name="password" autocomplete="current-password" placeholder="••••••••" required />
           </div>
-          <label class="checkbox-field">
-            <input type="checkbox" id="rememberMe" checked />
-            <span>Remember me on this device</span>
-          </label>
+          <div class="status-banner auth-note">
+            <strong>Session-only sign in</strong>
+            <span class="status-copy">Closing this tab ends the session, so you will need to sign in again.</span>
+          </div>
+          <div class="status-banner auth-note">
+            <strong>Password handling</strong>
+            <span class="status-copy">Credentials are sent securely over HTTPS and handled by Supabase; they are not stored in the browser.</span>
+          </div>
           <div class="button-row">
             <button type="submit" class="button button-primary" id="loginButton">Sign in</button>
           </div>
@@ -557,9 +561,7 @@
       user: null,
       teamId: null,
       currentTab: TABS.DASHBOARD,
-      authStorageMode: window.localStorage.getItem(STORAGE_KEYS.AUTH_MODE) || 'local',
       ui: {
-        rememberMe: true,
         orderFilter: ORDER_FILTERS.PENDING,
         selectedCustomerId: null,
         selectedCustomerHistoryId: null,
@@ -620,7 +622,7 @@
     function cacheElements() {
       const elementIds = [
         'authShell', 'appShell', 'loadingOverlay', 'loadingText', 'toastContainer', 'loginForm', 'loginEmail',
-        'loginPassword', 'rememberMe', 'loginButton', 'loginStatusBanner', 'sidebarUserName', 'sidebarTeamName',
+        'loginPassword', 'loginButton', 'loginStatusBanner', 'sidebarUserName', 'sidebarTeamName',
         'sidebarDashboardCount', 'sidebarOrdersCount', 'sidebarCustomersCount',
         'sidebarTrickyCount', 'profileSettingsButton', 'signOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
         'quickAddOrderButton', 'openMapButton', 'dashboardAddOrderButton', 'dashboardCustomersButton',
@@ -647,12 +649,7 @@
     }
 
     function getAuthStorage() {
-      return state.authStorageMode === 'session' ? window.sessionStorage : window.localStorage;
-    }
-
-    function setAuthStorageMode(mode) {
-      state.authStorageMode = mode;
-      window.localStorage.setItem(STORAGE_KEYS.AUTH_MODE, mode);
+      return window.sessionStorage;
     }
 
     function isOnline() {
@@ -1094,7 +1091,6 @@
     // ============================================================
 
     async function signIn(email, password) {
-      setAuthStorageMode(state.ui.rememberMe ? 'local' : 'session');
       const { data, error } = await getSupabaseClient().auth.signInWithPassword({ email, password });
       if (error) throw error;
       const user = data?.user || null;
@@ -2076,10 +2072,6 @@
       elements.offlineBanner.classList.toggle('is-visible', !online);
     }
 
-    function syncRememberMeState() {
-      state.ui.rememberMe = elements.rememberMe.checked;
-    }
-
     function renderApp() {
       renderAppState();
       renderDashboard();
@@ -2233,7 +2225,6 @@
     function bindForms() {
       elements.loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        syncRememberMeState();
         const email = elements.loginEmail.value.trim();
         const password = elements.loginPassword.value;
         if (!email || !password) {
@@ -2361,12 +2352,6 @@
       window.addEventListener('hashchange', () => {
         state.currentTab = resolveTabFromHash();
         renderRouter();
-      });
-    }
-
-    function bindRememberMe() {
-      elements.rememberMe.addEventListener('change', () => {
-        syncRememberMeState();
       });
     }
 
@@ -2701,7 +2686,6 @@
       bindDataActionDelegation();
       bindConnectivityEvents();
       bindRouterEvents();
-      bindRememberMe();
       elements.loginButton.disabled = false;
       elements.loginStatusBanner.querySelector('strong').textContent = 'Ready to start';
       renderOrderItemsEditor([DEFAULT_ORDER_ITEM]);
