@@ -417,8 +417,66 @@ a {
 
 .sidebar-footer {
   margin-top: auto;
+  position: relative;
   display: grid;
+  justify-items: start;
   gap: 12px;
+}
+
+.profile-trigger {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  border: 1px solid rgba(234, 220, 199, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 242, 224, 0.9));
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-soft);
+  padding: 0;
+}
+
+.profile-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring), var(--shadow-soft);
+}
+
+.profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  color: #fff8f0;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-size: 0.88rem;
+}
+
+.profile-menu {
+  position: absolute;
+  left: 0;
+  bottom: 64px;
+  min-width: 200px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(234, 220, 199, 0.95);
+  background: rgba(255, 253, 248, 0.98);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 10px;
+  z-index: 30;
+}
+
+.profile-menu-header {
+  padding: 4px 4px 2px;
+  display: grid;
+  gap: 2px;
+}
+
+.profile-menu-button {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .user-chip,
