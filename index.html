@@ -82,11 +82,10 @@
           <strong id="sidebarUserName">Signed in</strong>
           <span class="status-copy hidden" id="sidebarTeamName">Team ready</span>
         </div>
-        <div class="status-banner" id="connectionStatusBanner">
-          <strong>Ready</strong>
-          <span class="status-copy">Your session is active.</span>
+        <div class="button-row sidebar-action-row">
+          <button class="button button-secondary button-small" id="profileSettingsButton" type="button">Profile settings</button>
+          <button class="button button-ghost button-small" id="signOutButton" type="button">Log out</button>
         </div>
-        <button class="button button-ghost" id="signOutButton" type="button">Log out</button>
       </div>
     </aside>
 
@@ -99,7 +98,6 @@
         <div class="header-actions">
           <button class="button button-secondary button-small" id="refreshButton" type="button">Refresh</button>
           <button class="button button-primary button-small" id="quickAddOrderButton" type="button">Add Order</button>
-          <button class="button button-ghost button-small" id="headerSignOutButton" type="button">Log out</button>
         </div>
       </header>
 
@@ -623,8 +621,8 @@
       const elementIds = [
         'authShell', 'appShell', 'loadingOverlay', 'loadingText', 'toastContainer', 'loginForm', 'loginEmail',
         'loginPassword', 'rememberMe', 'loginButton', 'loginStatusBanner', 'sidebarUserName', 'sidebarTeamName',
-        'connectionStatusBanner', 'sidebarDashboardCount', 'sidebarOrdersCount', 'sidebarCustomersCount',
-        'sidebarTrickyCount', 'signOutButton', 'headerSignOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
+        'sidebarDashboardCount', 'sidebarOrdersCount', 'sidebarCustomersCount',
+        'sidebarTrickyCount', 'profileSettingsButton', 'signOutButton', 'headerTitle', 'headerSubtitle', 'refreshButton',
         'quickAddOrderButton', 'openMapButton', 'dashboardAddOrderButton', 'dashboardCustomersButton',
         'offlineBanner', 'pendingOrdersValue', 'pendingOrdersMeta', 'customersValue', 'trickySpotsValue',
         'deliveredOrdersValue', 'expiredOrdersValue', 'dashboardPendingList', 'dashboardMiniMap', 'ordersList',
@@ -2053,9 +2051,6 @@
       elements.sidebarTeamName.textContent = '';
       elements.loginButton.disabled = false;
       elements.loadingOverlay.classList.remove('is-visible');
-      if (elements.headerSignOutButton) {
-        elements.headerSignOutButton.classList.add('hidden');
-      }
     }
 
     function getUserDisplayName(user) {
@@ -2073,19 +2068,12 @@
       elements.appShell.classList.add('is-visible');
       elements.sidebarUserName.textContent = getUserDisplayName(state.user);
       elements.sidebarTeamName.textContent = '';
-      elements.connectionStatusBanner.querySelector('strong').textContent = 'Ready';
-      elements.connectionStatusBanner.querySelector('.status-copy').textContent = 'Your account is signed in.';
       elements.loginButton.disabled = false;
-      if (elements.headerSignOutButton) {
-        elements.headerSignOutButton.classList.remove('hidden');
-      }
     }
 
     function setConnectionState() {
       const online = isOnline();
       elements.offlineBanner.classList.toggle('is-visible', !online);
-      elements.connectionStatusBanner.querySelector('strong').textContent = online ? 'Ready' : 'Offline';
-      elements.connectionStatusBanner.querySelector('.status-copy').textContent = online ? 'Your account is signed in.' : 'Some actions are waiting for a connection.';
     }
 
     function syncRememberMeState() {
@@ -2284,9 +2272,9 @@
         }
       });
 
-      if (elements.headerSignOutButton) {
-        elements.headerSignOutButton.addEventListener('click', async () => {
-          elements.signOutButton.click();
+      if (elements.profileSettingsButton) {
+        elements.profileSettingsButton.addEventListener('click', () => {
+          showToast('Profile settings will be added here soon.', MESSAGE_TYPES.INFO, 'Profile settings');
         });
       }
 
